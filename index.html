@@ -2,110 +2,146 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Video Player</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Video Přehrávač</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
         }
-        
-        html, body {
-            width: 100%;
-            height: 100%;
-            position: fixed;
+
+        body {
+            width: 100vw;
+            height: 100vh;
             overflow: hidden;
             background: #000;
-            overscroll-behavior: none;
+            touch-action: none;
         }
-        
-        #app {
-            position: fixed;
+
+        #videoContainer {
+            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             overflow: hidden;
         }
-        
+
         #video {
-            position: fixed;
-            top: 0;
-            left: 0;
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transform-origin: 50% 88%;
+            transition: transform 0.1s ease-out;
+            transform-origin: center center;
         }
-        
-        .controller {
-            position: fixed;
-            bottom: 1.5rem;
+
+        #controlContainer {
+            position: absolute;
+            bottom: 50px;
             left: 50%;
             transform: translateX(-50%);
-            cursor: pointer;
-            user-select: none;
-            touch-action: none;
-            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-            z-index: 20;
-            width: 176px;
-            height: 176px;
+            width: 280px;
+            height: 280px;
+            z-index: 100;
         }
-        
-        .controller.dragging {
-            transition: none;
+
+        #controlWheel {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.1s ease-out;
         }
-        
-        .controller.clicked {
-            animation: bounce 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-        
-        @keyframes bounce {
-            0% { transform: translateX(-50%) scale(1) rotate(0deg); }
-            50% { transform: translateX(-50%) scale(0.85) rotate(0deg); }
-            100% { transform: translateX(-50%) scale(1) rotate(0deg); }
+
+
+
+
+        #debugInfo {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: monospace;
+            font-size: 12px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 200;
+            display: none;
         }
     </style>
 </head>
 <body>
-    <div id="app">
-        <video id="video" playsinline preload="metadata" webkit-playsinline>
-            <source src="./video.mp4" type="video/mp4">
+    <div id="videoContainer">
+        <video id="video" playsinline webkit-playsinline>
+            <source src="video.mp4" type="video/mp4">
         </video>
-        
-        <img 
-            class="controller" 
-            id="controller" 
-            src="./controller.png" 
-            alt="Controller"
-        />
     </div>
+
+    <div id="controlContainer">
+        <img id="controlWheel" src="control.png" alt="Control">
+    </div>
+
+    <div id="debugInfo"></div>
 
     <script>
         const video = document.getElementById('video');
-        const controller = document.getElementById('controller');
-        
-        let isPlaying = false;
+        const controlWheel = document.getElementById('controlWheel');
+        const controlContainer = document.getElementById('controlContainer');
+        const debugInfo = document.getElementById('debugInfo');
+
         let isDragging = false;
-        let dragStart = { x: 0, y: 0 };
-        let wheelPosition = { x: 0, y: 0 };
-        let zoom = 1;
-        let panX = 0;
-        let panY = 0;
-        let seekSpeed = 0;
-        let animationFrame = null;
-        let wasUsingSeek = false;
-        let controllerRotation = 0;
-        let isZoomMode = false;
-        let isPanMode = false;
-        let activeZone = null;
-        
-        // Toggle play/pause
+        let startX = 0;
+        let startY = 0;
+        let centerX = 0;
+        let centerY = 0;
+        let currentAngle = 0;
+        let currentDistance = 0;
+        let isPlaying = false;
+        let currentZoom = 1;
+        let seekInterval = null;
+        let initialTime = 0;
+
+        // Funkce pro výpočet úhlu a vzdálenosti od středu
+        function calculateAngleAndDistance(x, y) {
+            const dx = x - centerX;
+            const dy = y - centerY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+            
+            // Normalizace úhlu na 0-360
+            angle = (angle + 360) % 360;
+            
+            return { angle, distance };
+        }
+
+        // Určení sektoru podle úhlu
+        function getSector(angle) {
+            // Video zpět: 180-315°
+            if (angle >= 180 && angle < 315) {
+                return 'backward';
+            }
+            // Zoom: 315-45° (přes 0°)
+            else if (angle >= 315 || angle < 45) {
+                return 'zoom';
+            }
+            // Video vpřed: 45-180°
+            else if (angle >= 45 && angle < 180) {
+                return 'forward';
+            }
+        }
+
+        // Rotace kolečka podle úhlu
+        function rotateWheel(angle) {
+            controlWheel.style.transform = `rotate(${angle}deg)`;
+        }
+
+        // Přehrávání/pauza (klik bez tažení)
         function togglePlayPause() {
             if (video.paused) {
                 video.play();
@@ -115,264 +151,152 @@
                 isPlaying = false;
             }
         }
-        
-        // Seek animation
-        function seekVideo() {
-            if (seekSpeed !== 0) {
-                const newTime = Math.max(0, Math.min(video.duration, video.currentTime + seekSpeed));
-                video.currentTime = newTime;
-                animationFrame = requestAnimationFrame(seekVideo);
+
+        // Posun videa vzad/vpřed
+        function seekVideo(distance, sector) {
+            const maxDistance = 100; // Maximální vzdálenost pro plnou rychlost
+            const normalizedDistance = Math.min(distance, maxDistance) / maxDistance;
+            
+            // Rychlost posunu (sekundy za frame)
+            const seekSpeed = normalizedDistance * 0.5; // 0-0.5 sekund za frame
+            
+            if (sector === 'backward') {
+                video.currentTime = Math.max(0, video.currentTime - seekSpeed);
+            } else if (sector === 'forward') {
+                video.currentTime = Math.min(video.duration, video.currentTime + seekSpeed);
             }
         }
-        
-        // Calculate seek speed
-        function calculateSeekSpeed(deltaX) {
-            const maxDelta = 250;
-            const normalizedDelta = Math.max(-maxDelta, Math.min(maxDelta, deltaX));
-            const ratio = Math.abs(normalizedDelta) / maxDelta;
-            const curve = Math.pow(ratio, 2.5);
-            const maxSpeed = 2;
-            const direction = normalizedDelta > 0 ? 1 : -1;
-            return direction * curve * maxSpeed;
+
+        // Zoom videa
+        function zoomVideo(distance) {
+            const maxDistance = 100;
+            const normalizedDistance = Math.min(distance, maxDistance) / maxDistance;
+            
+            // Zoom od 1x do 3x
+            currentZoom = 1 + (normalizedDistance * 2);
+            video.style.transform = `scale(${currentZoom})`;
         }
-        
-        // Update video transform
-        function updateVideoTransform() {
-            const screenWidth = window.innerWidth;
-            const screenHeight = window.innerHeight;
-            
-            const zoomedWidth = screenWidth * zoom;
-            const zoomedHeight = screenHeight * zoom;
-            
-            const maxPanX = (zoomedWidth - screenWidth) / 2;
-            const maxPanY = (zoomedHeight - screenHeight) / 2;
-            
-            // STRICT constraints to NEVER show black
-            const constrainedPanX = Math.max(-maxPanX, Math.min(maxPanX, panX));
-            const constrainedPanY = Math.max(-maxPanY, Math.min(maxPanY, panY));
-            
-            video.style.transform = `translate(${constrainedPanX}px, ${constrainedPanY}px) scale(${zoom})`;
+
+        // Debug info
+        function updateDebugInfo(angle, distance, sector) {
+            debugInfo.innerHTML = `
+                Angle: ${angle.toFixed(1)}°<br>
+                Distance: ${distance.toFixed(1)}px<br>
+                Sector: ${sector}<br>
+                Time: ${video.currentTime.toFixed(2)}s<br>
+                Zoom: ${currentZoom.toFixed(2)}x<br>
+                Playing: ${!video.paused}
+            `;
         }
-        
-        // Detect zone
-        function detectZone(angle, distance, deltaX, deltaY) {
-            if (activeZone) return activeZone;
-            
-            const isZoomZone = (angle >= 60 && angle <= 120) && deltaY < -30;
-            const isVideoVpredZone = ((angle >= 330 || angle <= 30)) && distance > 15;
-            const isVideoVzadZone = (angle >= 150 && angle <= 210) && distance > 15;
-            
-            if (isZoomZone) return 'zoom';
-            if (isVideoVpredZone) return 'vpred';
-            if (isVideoVzadZone) return 'vzad';
-            
-            return null;
-        }
-        
-        // Touch start
+
+        // Touch/Mouse start
         function handleStart(e) {
             e.preventDefault();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            
-            const rect = controller.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-            
             isDragging = true;
-            dragStart = { x: centerX, y: centerY };
-            wheelPosition = { x: 0, y: 0 };
-            activeZone = null;
             
-            controller.classList.add('dragging');
+            const touch = e.touches ? e.touches[0] : e;
+            startX = touch.clientX;
+            startY = touch.clientY;
+            
+            const rect = controlContainer.getBoundingClientRect();
+            centerX = rect.left + rect.width / 2;
+            centerY = rect.top + rect.height / 2;
+            
+            initialTime = video.currentTime;
         }
-        
-        // Touch move
+
+        // Touch/Mouse move
         function handleMove(e) {
             if (!isDragging) return;
             e.preventDefault();
             
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const touch = e.touches ? e.touches[0] : e;
+            const x = touch.clientX;
+            const y = touch.clientY;
             
-            const deltaX = clientX - dragStart.x;
-            const deltaY = clientY - dragStart.y;
+            const { angle, distance } = calculateAngleAndDistance(x, y);
+            currentAngle = angle;
+            currentDistance = distance;
             
-            wheelPosition = { x: deltaX, y: deltaY };
+            const sector = getSector(angle);
             
-            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            // Rotace kolečka
+            rotateWheel(angle);
             
-            let angle = Math.atan2(-deltaY, deltaX) * (180 / Math.PI);
-            if (angle < 0) angle += 360;
-            
-            const zone = detectZone(angle, distance, deltaX, deltaY);
-            if (zone && !activeZone) {
-                activeZone = zone;
-            }
-            
-            // ZOOM/PAN
-            if (activeZone === 'zoom') {
-                if (!isZoomMode) {
-                    video.pause();
-                    isPlaying = false;
-                    isZoomMode = true;
-                }
-                
-                // INSTANT smooth zoom tied to finger
-                const zoomDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-                const maxZoomDistance = 200;
-                const zoomProgress = Math.min(zoomDistance / maxZoomDistance, 1);
-                zoom = 1 + zoomProgress; // 1.0 to 2.0
-                
-                // Smooth rotation
-                controllerRotation = -90 * zoomProgress;
-                
-                // Update IMMEDIATELY
-                updateVideoTransform();
-                controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) rotate(${controllerRotation}deg)`;
-                
-                // Pan activation - ONLY when controller returns to origin
-                const distanceFromOrigin = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-                
-                if (zoom >= 1.95 && distanceFromOrigin < 120 && !isPanMode) {
-                    isPanMode = true;
-                }
-                
-                // Pan active
-                if (isPanMode) {
-                    const screenWidth = window.innerWidth;
-                    const screenHeight = window.innerHeight;
-                    
-                    const maxPanX = (screenWidth * zoom - screenWidth) / 2;
-                    const maxPanY = (screenHeight * zoom - screenHeight) / 2;
-                    
-                    // Pan mapping with stronger reach
-                    const panRadius = 180;
-                    
-                    const normX = Math.max(-1, Math.min(1, deltaX / panRadius));
-                    const normY = Math.max(-1, Math.min(1, deltaY / panRadius));
-                    
-                    // STRONG acceleration to reach all corners
-                    const accelX = Math.sign(normX) * Math.pow(Math.abs(normX), 0.6);
-                    const accelY = Math.sign(normY) * Math.pow(Math.abs(normY), 0.6);
-                    
-                    panX = -accelX * maxPanX;
-                    panY = -accelY * maxPanY;
-                    
-                    updateVideoTransform();
+            // Akce podle sektoru
+            if (distance > 20) { // Minimální vzdálenost pro aktivaci
+                if (sector === 'zoom') {
+                    zoomVideo(distance);
+                } else if (sector === 'backward' || sector === 'forward') {
+                    seekVideo(distance, sector);
                 }
             }
-            // VIDEO VPRED
-            else if (activeZone === 'vpred' && !isZoomMode) {
-                wasUsingSeek = true;
-                seekSpeed = calculateSeekSpeed(deltaX);
-                
-                if (animationFrame === null) {
-                    seekVideo();
-                }
-                
-                controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92) rotate(0deg)`;
-            }
-            // VIDEO VZAD
-            else if (activeZone === 'vzad' && !isZoomMode) {
-                wasUsingSeek = true;
-                seekSpeed = calculateSeekSpeed(deltaX);
-                
-                if (animationFrame === null) {
-                    seekVideo();
-                }
-                
-                controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92) rotate(0deg)`;
-            }
-            // Default
-            else if (!isZoomMode && !isPanMode) {
-                controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92) rotate(0deg)`;
-            }
+            
+            // updateDebugInfo(angle, distance, sector);
         }
-        
-        // Touch end
+
+        // Touch/Mouse end
         function handleEnd(e) {
-            if (!isDragging) return;
+            e.preventDefault();
             
-            const deltaX = wheelPosition.x;
-            const deltaY = wheelPosition.y;
-            
-            // Click
-            if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
-                controller.classList.add('clicked');
-                setTimeout(() => controller.classList.remove('clicked'), 300);
-                togglePlayPause();
-            }
-            
-            // Seek used
-            if (wasUsingSeek) {
-                video.pause();
-                isPlaying = false;
-                wasUsingSeek = false;
-            }
-            
-            // COMPLETE reset
-            isDragging = false;
-            wheelPosition = { x: 0, y: 0 };
-            seekSpeed = 0;
-            activeZone = null;
-            
-            if (animationFrame !== null) {
-                cancelAnimationFrame(animationFrame);
-                animationFrame = null;
-            }
-            
-            controller.classList.remove('dragging');
-            
-            // Smooth zoom out
-            const zoomOut = () => {
-                if (zoom > 1.01) {
-                    zoom += (1 - zoom) * 0.15;
-                    controllerRotation += (0 - controllerRotation) * 0.15;
-                    
-                    updateVideoTransform();
-                    controller.style.transform = `translateX(-50%) rotate(${controllerRotation}deg)`;
-                    
-                    requestAnimationFrame(zoomOut);
-                } else {
-                    zoom = 1;
-                    controllerRotation = 0;
-                    isZoomMode = false;
-                    isPanMode = false;
-                    panX = 0;
-                    panY = 0;
-                    
-                    updateVideoTransform();
-                    controller.style.transform = '';
+            if (isDragging) {
+                // Pokud bylo jen krátké kliknutí (malý pohyb)
+                const touch = e.changedTouches ? e.changedTouches[0] : e;
+                const moveDistance = Math.sqrt(
+                    Math.pow(touch.clientX - startX, 2) + 
+                    Math.pow(touch.clientY - startY, 2)
+                );
+                
+                if (moveDistance < 10) {
+                    togglePlayPause();
                 }
-            };
-            
-            if (isZoomMode || isPanMode) {
-                zoomOut();
+                
+                // Reset
+                isDragging = false;
+                controlWheel.style.transform = 'rotate(0deg)';
+                
+                // Reset zoomu plynule
+                if (currentZoom !== 1) {
+                    video.style.transition = 'transform 0.3s ease-out';
+                    video.style.transform = 'scale(1)';
+                    setTimeout(() => {
+                        video.style.transition = 'transform 0.1s ease-out';
+                    }, 300);
+                    currentZoom = 1;
+                }
             }
         }
-        
+
         // Event listeners
-        controller.addEventListener('mousedown', handleStart);
-        controller.addEventListener('touchstart', handleStart, { passive: false });
+        controlWheel.addEventListener('touchstart', handleStart, { passive: false });
+        controlWheel.addEventListener('touchmove', handleMove, { passive: false });
+        controlWheel.addEventListener('touchend', handleEnd, { passive: false });
         
+        controlWheel.addEventListener('mousedown', handleStart);
         document.addEventListener('mousemove', handleMove);
-        document.addEventListener('touchmove', handleMove, { passive: false });
-        
         document.addEventListener('mouseup', handleEnd);
-        document.addEventListener('touchend', handleEnd);
-        
-        controller.addEventListener('contextmenu', (e) => e.preventDefault());
-        
-        document.body.addEventListener('touchmove', (e) => {
-            if (!isDragging) {
+
+        // Inicializace videa
+        video.addEventListener('loadedmetadata', () => {
+            console.log('Video loaded, duration:', video.duration);
+        });
+
+        // Prevent default touch behaviors
+        document.addEventListener('touchmove', (e) => {
+            if (isDragging) {
                 e.preventDefault();
             }
         }, { passive: false });
-        
-        // Load first frame
-        video.addEventListener('loadedmetadata', () => {
-            video.currentTime = 0.001;
+
+        // Debug toggle (double tap on video)
+        let lastTap = 0;
+        video.addEventListener('touchend', (e) => {
+            const currentTime = new Date().getTime();
+            const tapLength = currentTime - lastTap;
+            if (tapLength < 300 && tapLength > 0) {
+                debugInfo.style.display = debugInfo.style.display === 'none' ? 'block' : 'none';
+            }
+            lastTap = currentTime;
         });
     </script>
 </body>
