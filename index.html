@@ -2,7 +2,7 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Video Player</title>
@@ -17,16 +17,10 @@
         html, body {
             width: 100%;
             height: 100%;
-            overflow: hidden;
-            background: black;
             position: fixed;
-            padding: 0;
-            margin: 0;
+            overflow: hidden;
+            background: #000;
             overscroll-behavior: none;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
         
         #app {
@@ -46,13 +40,13 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transform-origin: 50% 82%;
+            transform-origin: 50% 92%;
             transition: transform 0.3s ease;
         }
         
         .controller {
-            position: absolute;
-            bottom: 3rem;
+            position: fixed;
+            bottom: 1.5rem;
             left: 50%;
             transform: translateX(-50%);
             cursor: pointer;
@@ -73,13 +67,9 @@
         }
         
         @keyframes bounce {
-            0% { transform: translateX(-50%) scale(1); }
-            50% { transform: translateX(-50%) scale(0.85); }
-            100% { transform: translateX(-50%) scale(1); }
-        }
-        
-        .controller.pan-mode {
-            transform: translateX(-50%) scale(0.85) !important;
+            0% { transform: translateX(-50%) scale(1) rotate(0deg); }
+            50% { transform: translateX(-50%) scale(0.85) rotate(0deg); }
+            100% { transform: translateX(-50%) scale(1) rotate(0deg); }
         }
     </style>
 </head>
@@ -115,39 +105,23 @@
         let isZoomMode = false;
         let isPanMode = false;
         let wasUsingSeek = false;
-        
-        // Haptic feedback - iOS specific
-        function hapticFeedback(style = 'medium') {
-            try {
-                // Try iOS Haptic Engine API
-                if (window.navigator && window.navigator.vibrate) {
-                    window.navigator.vibrate(15);
-                }
-                // Try Taptic Engine (iOS 10+)
-                if (window.TapticEngine) {
-                    window.TapticEngine.impact({
-                        style: style // 'light', 'medium', 'heavy'
-                    });
-                }
-            } catch (e) {
-                console.log('Haptic not available');
-            }
-        }
+        let controllerRotation = 0;
+        let targetRotation = 0;
+        let panAnchorSet = false;
+        let panAnchor = { x: 0, y: 0 };
         
         // Toggle play/pause
         function togglePlayPause() {
             if (video.paused) {
                 video.play();
                 isPlaying = true;
-                hapticFeedback();
             } else {
                 video.pause();
                 isPlaying = false;
-                hapticFeedback();
             }
         }
         
-        // Seek animation with very smooth acceleration (0% to 200%)
+        // Seek animation
         function seekVideo() {
             if (seekSpeed !== 0) {
                 const newTime = Math.max(0, Math.min(video.duration, video.currentTime + seekSpeed));
@@ -156,47 +130,63 @@
             }
         }
         
-        // Calculate speed with very gentle curve from 0% to 200%
+        // Calculate seek speed with smooth curve
         function calculateSeekSpeed(deltaX) {
-            const maxDelta = 250; // Increased for slower acceleration
+            const maxDelta = 250;
             const normalizedDelta = Math.max(-maxDelta, Math.min(maxDelta, deltaX));
-            const ratio = Math.abs(normalizedDelta) / maxDelta; // 0 to 1
-            
-            // Very gentle acceleration curve
-            const curve = Math.pow(ratio, 2.5); // Higher power = slower start
-            const maxSpeed = 2; // 200% = 2 seconds per frame at max
+            const ratio = Math.abs(normalizedDelta) / maxDelta;
+            const curve = Math.pow(ratio, 2.5);
+            const maxSpeed = 2;
             const direction = normalizedDelta > 0 ? 1 : -1;
-            
             return direction * curve * maxSpeed;
         }
         
-        // Smooth zoom animation - with ease-out curve
+        // Smooth rotation animation
+        function animateRotation() {
+            const rotDiff = targetRotation - controllerRotation;
+            if (Math.abs(rotDiff) > 0.5) {
+                controllerRotation += rotDiff * 0.15;
+                return true;
+            } else {
+                controllerRotation = targetRotation;
+                return false;
+            }
+        }
+        
+        // Smooth zoom animation with simultaneous rotation
         function animateZoom() {
             const zoomDiff = targetZoom - zoom;
             if (Math.abs(zoomDiff) > 0.01) {
-                // Ease-out curve: faster at start, slower at end
                 zoom += zoomDiff * 0.12;
+                
+                // Rotate during zoom (0° to -90° as zoom goes 1.0 to 2.0)
+                if (isZoomMode && targetZoom === 2.0) {
+                    const zoomProgress = (zoom - 1.0) / 1.0; // 0 to 1
+                    controllerRotation = -90 * zoomProgress;
+                }
+                
                 updateVideoTransform();
                 zoomAnimationFrame = requestAnimationFrame(animateZoom);
             } else {
                 zoom = targetZoom;
+                if (isZoomMode && targetZoom === 2.0) {
+                    controllerRotation = -90; // Ensure final rotation
+                }
                 updateVideoTransform();
             }
         }
         
-        // Update video transform with proper boundaries
+        // Update video transform
         function updateVideoTransform() {
             const screenWidth = window.innerWidth;
             const screenHeight = window.innerHeight;
             
-            // At 200% zoom, calculate max safe pan
             const zoomedWidth = screenWidth * zoom;
             const zoomedHeight = screenHeight * zoom;
             
             const maxPanX = (zoomedWidth - screenWidth) / 2;
             const maxPanY = (zoomedHeight - screenHeight) / 2;
             
-            // Constrain pan to prevent black edges
             const constrainedPanX = Math.max(-maxPanX, Math.min(maxPanX, panX));
             const constrainedPanY = Math.max(-maxPanY, Math.min(maxPanY, panY));
             
@@ -217,7 +207,7 @@
             dragStart = { x: centerX, y: centerY };
             wheelPosition = { x: 0, y: 0 };
             
-            controller.classList.add('dragging', 'pressed');
+            controller.classList.add('dragging');
         }
         
         // Mouse/Touch move
@@ -233,23 +223,29 @@
             
             wheelPosition = { x: deltaX, y: deltaY };
             
-            // Determine primary direction with tolerance
-            const absX = Math.abs(deltaX);
-            const absY = Math.abs(deltaY);
-            const angle = Math.atan2(absY, absX) * (180 / Math.PI);
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
             
-            const isVerticalDominant = angle > 50;
-            const isHorizontalDominant = angle < 40;
+            // Calculate angle from RIGHT (0° = right, counter-clockwise)
+            // Using standard math convention: 0° right, 90° up, 180° left, 270° down
+            let angle = Math.atan2(-deltaY, deltaX) * (180 / Math.PI);
+            if (angle < 0) angle += 360;
             
-            // Zoom/Pan mode: 10px upward + vertical dominant
-            if (deltaY < -10 && isVerticalDominant) {
+            // Zone detection based on precise diagram with protractor:
+            // VIDEO VZAD (pink): 180° to 315°
+            // ZOOM (top): 315° to 45° (wraps around 0°) + MUST move up (deltaY < -40)
+            // VIDEO VPRED (blue): 45° to 180°
+            
+            const isVideoVzadZone = (angle >= 180 && angle <= 315) && distance > 15;
+            const isZoomZone = ((angle >= 315 || angle <= 45)) && deltaY < -40; // Threshold to prevent accidental zoom
+            const isVideoVpredZone = (angle >= 45 && angle <= 180) && distance > 15;
+            
+            // ZOOM/PAN MODE
+            if (isZoomZone || (isZoomMode && isPanMode)) {
+                // Start zoom
                 if (!isZoomMode) {
                     video.pause();
                     isPlaying = false;
                     isZoomMode = true;
-                    isPanMode = true;
-                    controller.classList.add('pan-mode');
-                    hapticFeedback('medium');
                     
                     targetZoom = 2.0;
                     if (zoomAnimationFrame === null) {
@@ -257,40 +253,51 @@
                     }
                 }
                 
-                // Calculate distance and direction for non-linear pan
-                const screenWidth = window.innerWidth;
-                const screenHeight = window.innerHeight;
-                const circleRadius = (screenWidth * 2) / 3;
-                const distanceFromCenter = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-                const normalizedDistance = Math.min(distanceFromCenter / circleRadius, 1);
+                // Check if zoom completed and controller returning down
+                if (isZoomMode && zoom >= 1.98) {
+                    const distanceFromOrigin = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                    
+                    // If controller comes back down close to origin, activate pan
+                    if (distanceFromOrigin < 100 && !panAnchorSet) {
+                        isPanMode = true;
+                        panAnchor = { x: deltaX, y: deltaY };
+                        panAnchorSet = true;
+                    }
+                    
+                    // Pan is active - calculate pan from anchor
+                    if (isPanMode && panAnchorSet) {
+                        const panDeltaX = deltaX - panAnchor.x;
+                        const panDeltaY = deltaY - panAnchor.y;
+                        const panDistance = Math.sqrt(panDeltaX * panDeltaX + panDeltaY * panDeltaY);
+                        
+                        // "Space for controller move" radius
+                        const screenWidth = window.innerWidth;
+                        const screenHeight = window.innerHeight;
+                        const controllerSpaceRadius = Math.min(screenWidth, screenHeight) * 0.55;
+                        const normalizedDist = Math.min(panDistance / controllerSpaceRadius, 1);
+                        
+                        // Progressive acceleration
+                        const acceleration = Math.pow(normalizedDist, 1.4);
+                        
+                        // Variable relationship - strong multipliers
+                        const basePanX = 1.2;
+                        const basePanY = 1.5;
+                        
+                        const finalPanX = basePanX * (1 + acceleration * 2.5);
+                        const finalPanY = basePanY * (1 + acceleration * 2.5);
+                        
+                        panX = -(panDeltaX * finalPanX);
+                        panY = -(panDeltaY * finalPanY);
+                        
+                        updateVideoTransform();
+                    }
+                }
                 
-                // Ease-in-out curve for smooth acceleration
-                const accelerationCurve = normalizedDistance < 0.5 
-                    ? 2 * normalizedDistance * normalizedDistance
-                    : 1 - Math.pow(-2 * normalizedDistance + 2, 2) / 2;
-                
-                // Aspect ratio compensation
-                // iPhone screen ~19.5:9 ratio (2.17:1)
-                const aspectRatio = screenHeight / screenWidth; // ~2.17
-                
-                // Base multipliers adjusted for screen size and zoom
-                const basePanX = 2.0;
-                const basePanY = 3.5; // Much stronger for vertical reach
-                
-                const finalPanX = basePanX * (1 + accelerationCurve * 3);
-                const finalPanY = basePanY * (1 + accelerationCurve * 3);
-                
-                panX = -(deltaX * finalPanX);
-                panY = -(deltaY * finalPanY);
-                
-                updateVideoTransform();
-                
-                // Controller rotates -90° in pan mode
-                const rotation = -90;
-                controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) rotate(${rotation}deg)`;
+                // Controller ALWAYS follows finger
+                controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) rotate(${controllerRotation}deg)`;
             }
-            // Seek mode
-            else if (absX > 10 && isHorizontalDominant && !isZoomMode && !isPanMode) {
+            // VIDEO VPRED (blue zone, 45° to 180°)
+            else if (isVideoVpredZone && !isZoomMode) {
                 wasUsingSeek = true;
                 seekSpeed = calculateSeekSpeed(deltaX);
                 
@@ -298,10 +305,22 @@
                     seekVideo();
                 }
                 
-                controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92)`;
-            } 
+                controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92) rotate(0deg)`;
+            }
+            // VIDEO VZAD (pink zone, 180° to 315°)
+            else if (isVideoVzadZone && !isZoomMode) {
+                wasUsingSeek = true;
+                seekSpeed = calculateSeekSpeed(deltaX);
+                
+                if (animationFrame === null) {
+                    seekVideo();
+                }
+                
+                controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92) rotate(0deg)`;
+            }
+            // Default
             else if (!isZoomMode && !isPanMode) {
-                controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92)`;
+                controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92) rotate(0deg)`;
             }
         }
         
@@ -312,33 +331,29 @@
             const deltaX = wheelPosition.x;
             const deltaY = wheelPosition.y;
             
-            // Click (no movement) - play/pause with bounce
+            // Click - play/pause
             if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
                 controller.classList.add('clicked');
                 setTimeout(() => controller.classList.remove('clicked'), 300);
                 togglePlayPause();
             }
             
-            // If was using seek, go to PAUSE
+            // Seek used - pause
             if (wasUsingSeek) {
                 video.pause();
                 isPlaying = false;
                 wasUsingSeek = false;
-                hapticFeedback('light');
             }
             
-            // Exit zoom/pan mode
-            if (isPanMode) {
-                controller.classList.remove('pan-mode');
-                hapticFeedback('light');
-            }
-            
+            // Exit modes
             isZoomMode = false;
             isPanMode = false;
+            panAnchorSet = false;
             isDragging = false;
             wheelPosition = { x: 0, y: 0 };
             seekSpeed = 0;
             targetZoom = 1;
+            targetRotation = 0;
             
             if (animationFrame !== null) {
                 cancelAnimationFrame(animationFrame);
@@ -351,12 +366,23 @@
             }
             
             controller.classList.remove('dragging');
-            controller.style.transform = '';
             
-            // Smooth zoom back
+            // Animate rotation back to 0
+            const animateBack = () => {
+                const rotDiff = 0 - controllerRotation;
+                if (Math.abs(rotDiff) > 0.5) {
+                    controllerRotation += rotDiff * 0.15;
+                    controller.style.transform = `translateX(-50%) rotate(${controllerRotation}deg)`;
+                    requestAnimationFrame(animateBack);
+                } else {
+                    controllerRotation = 0;
+                    controller.style.transform = '';
+                }
+            };
+            animateBack();
+            
             animateZoom();
             
-            // Reset pan
             setTimeout(() => {
                 panX = 0;
                 panY = 0;
@@ -374,10 +400,8 @@
         document.addEventListener('mouseup', handleEnd);
         document.addEventListener('touchend', handleEnd);
         
-        // Prevent context menu
         controller.addEventListener('contextmenu', (e) => e.preventDefault());
         
-        // Prevent scrolling
         document.body.addEventListener('touchmove', (e) => {
             if (!isDragging) {
                 e.preventDefault();
@@ -386,7 +410,7 @@
         
         // Load first frame
         video.addEventListener('loadedmetadata', () => {
-            video.currentTime = 0.001; // Very first frame
+            video.currentTime = 0.001;
         });
     </script>
 </body>
