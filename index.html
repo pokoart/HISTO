@@ -41,7 +41,6 @@
             height: 100%;
             object-fit: cover;
             transform-origin: 50% 88%;
-            transition: transform 0.3s ease;
         }
         
         .controller {
@@ -96,19 +95,15 @@
         let dragStart = { x: 0, y: 0 };
         let wheelPosition = { x: 0, y: 0 };
         let zoom = 1;
-        let targetZoom = 1;
         let panX = 0;
         let panY = 0;
         let seekSpeed = 0;
         let animationFrame = null;
-        let zoomAnimationFrame = null;
-        let isZoomMode = false;
-        let isPanMode = false;
         let wasUsingSeek = false;
         let controllerRotation = 0;
-        let targetRotation = 0;
-        let panStarted = false;
-        let activeZone = null; // Track which zone was activated first
+        let isZoomMode = false;
+        let isPanMode = false;
+        let activeZone = null;
         
         // Toggle play/pause
         function togglePlayPause() {
@@ -130,7 +125,7 @@
             }
         }
         
-        // Calculate seek speed with smooth curve
+        // Calculate seek speed
         function calculateSeekSpeed(deltaX) {
             const maxDelta = 250;
             const normalizedDelta = Math.max(-maxDelta, Math.min(maxDelta, deltaX));
@@ -141,37 +136,7 @@
             return direction * curve * maxSpeed;
         }
         
-        // Smooth zoom animation with rotation
-        function animateZoom() {
-            const zoomDiff = targetZoom - zoom;
-            if (Math.abs(zoomDiff) > 0.01) {
-                zoom += zoomDiff * 0.12;
-                
-                // Smooth rotation during zoom
-                if (isZoomMode && targetZoom === 2.0) {
-                    const zoomProgress = (zoom - 1.0) / 1.0;
-                    const easedProgress = zoomProgress * zoomProgress * (3 - 2 * zoomProgress); // Smoothstep
-                    controllerRotation = -90 * easedProgress;
-                } else if (targetZoom === 1.0) {
-                    const zoomProgress = zoom - 1.0;
-                    const easedProgress = zoomProgress * zoomProgress * (3 - 2 * zoomProgress);
-                    controllerRotation = -90 * easedProgress;
-                }
-                
-                updateVideoTransform();
-                zoomAnimationFrame = requestAnimationFrame(animateZoom);
-            } else {
-                zoom = targetZoom;
-                if (isZoomMode && targetZoom === 2.0) {
-                    controllerRotation = -90;
-                } else {
-                    controllerRotation = 0;
-                }
-                updateVideoTransform();
-            }
-        }
-        
-        // Update video transform with proper constraints
+        // Update video transform
         function updateVideoTransform() {
             const screenWidth = window.innerWidth;
             const screenHeight = window.innerHeight;
@@ -179,26 +144,24 @@
             const zoomedWidth = screenWidth * zoom;
             const zoomedHeight = screenHeight * zoom;
             
-            // Maximum pan is half of the extra space created by zoom
             const maxPanX = (zoomedWidth - screenWidth) / 2;
             const maxPanY = (zoomedHeight - screenHeight) / 2;
             
-            // Constrain pan to never show black borders
+            // STRICT constraints to NEVER show black
             const constrainedPanX = Math.max(-maxPanX, Math.min(maxPanX, panX));
             const constrainedPanY = Math.max(-maxPanY, Math.min(maxPanY, panY));
             
             video.style.transform = `translate(${constrainedPanX}px, ${constrainedPanY}px) scale(${zoom})`;
         }
         
-        // Detect zone priority - first valid zone wins
+        // Detect zone
         function detectZone(angle, distance, deltaX, deltaY) {
-            if (activeZone) return activeZone; // Sticky zone until release
+            if (activeZone) return activeZone;
             
             const isZoomZone = (angle >= 60 && angle <= 120) && deltaY < -30;
             const isVideoVpredZone = ((angle >= 330 || angle <= 30)) && distance > 15;
             const isVideoVzadZone = (angle >= 150 && angle <= 210) && distance > 15;
             
-            // Priority: zoom > vpřed > vzad
             if (isZoomZone) return 'zoom';
             if (isVideoVpredZone) return 'vpred';
             if (isVideoVzadZone) return 'vzad';
@@ -206,7 +169,7 @@
             return null;
         }
         
-        // Mouse/Touch start
+        // Touch start
         function handleStart(e) {
             e.preventDefault();
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -219,13 +182,12 @@
             isDragging = true;
             dragStart = { x: centerX, y: centerY };
             wheelPosition = { x: 0, y: 0 };
-            activeZone = null; // Reset zone at start
-            panStarted = false;
+            activeZone = null;
             
             controller.classList.add('dragging');
         }
         
-        // Mouse/Touch move
+        // Touch move
         function handleMove(e) {
             if (!isDragging) return;
             e.preventDefault();
@@ -240,70 +202,60 @@
             
             const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
             
-            // Calculate angle
             let angle = Math.atan2(-deltaY, deltaX) * (180 / Math.PI);
             if (angle < 0) angle += 360;
             
-            // Detect zone with priority
             const zone = detectZone(angle, distance, deltaX, deltaY);
             if (zone && !activeZone) {
                 activeZone = zone;
             }
             
-            // ZOOM MODE
-            if (activeZone === 'zoom' || isPanMode) {
-                // Start zoom
+            // ZOOM/PAN
+            if (activeZone === 'zoom') {
                 if (!isZoomMode) {
                     video.pause();
                     isPlaying = false;
                     isZoomMode = true;
-                    
-                    targetZoom = 2.0;
-                    if (zoomAnimationFrame === null) {
-                        animateZoom();
-                    }
                 }
                 
-                // Calculate distance from origin
+                // INSTANT smooth zoom tied to finger
+                const zoomDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                const maxZoomDistance = 200;
+                const zoomProgress = Math.min(zoomDistance / maxZoomDistance, 1);
+                zoom = 1 + zoomProgress; // 1.0 to 2.0
+                
+                // Smooth rotation
+                controllerRotation = -90 * zoomProgress;
+                
+                // Update IMMEDIATELY
+                updateVideoTransform();
+                controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) rotate(${controllerRotation}deg)`;
+                
+                // Pan activation - ONLY when controller returns to origin
                 const distanceFromOrigin = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
                 
-                // Pan mode activates INSTANTLY when:
-                // 1. Zoom is complete (>= 1.98)
-                // 2. Controller returns near origin (< 100px)
-                if (zoom >= 1.98 && distanceFromOrigin < 100 && !panStarted) {
+                if (zoom >= 1.95 && distanceFromOrigin < 120 && !isPanMode) {
                     isPanMode = true;
-                    panStarted = true;
                 }
                 
-                // Controller follows finger during zoom AND pan
-                const rotProgress = (zoom - 1.0) / 1.0;
-                const currentRot = -90 * rotProgress;
-                controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) rotate(${currentRot}deg)`;
-                
-                // Pan is active - background unlocked
-                if (isPanMode && panStarted) {
+                // Pan active
+                if (isPanMode) {
                     const screenWidth = window.innerWidth;
                     const screenHeight = window.innerHeight;
                     
-                    const zoomedWidth = screenWidth * 2.0;
-                    const zoomedHeight = screenHeight * 2.0;
+                    const maxPanX = (screenWidth * zoom - screenWidth) / 2;
+                    const maxPanY = (screenHeight * zoom - screenHeight) / 2;
                     
-                    const maxPanX = (zoomedWidth - screenWidth) / 2;
-                    const maxPanY = (zoomedHeight - screenHeight) / 2;
+                    // Pan mapping with stronger reach
+                    const panRadius = 180;
                     
-                    // SENSITIVE pan mapping - small controller movements = large background movement
-                    // Map controller position in small radius around origin to full background
-                    const panRadius = 150; // Small radius for sensitive control
-                    
-                    // Normalized position within pan radius (-1 to 1)
                     const normX = Math.max(-1, Math.min(1, deltaX / panRadius));
                     const normY = Math.max(-1, Math.min(1, deltaY / panRadius));
                     
-                    // Strong acceleration curve for reaching edges
-                    const accelX = Math.sign(normX) * Math.pow(Math.abs(normX), 0.7);
-                    const accelY = Math.sign(normY) * Math.pow(Math.abs(normY), 0.7);
+                    // STRONG acceleration to reach all corners
+                    const accelX = Math.sign(normX) * Math.pow(Math.abs(normX), 0.6);
+                    const accelY = Math.sign(normY) * Math.pow(Math.abs(normY), 0.6);
                     
-                    // Inverted pan (controller right = background left)
                     panX = -accelX * maxPanX;
                     panY = -accelY * maxPanY;
                     
@@ -332,42 +284,37 @@
                 
                 controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92) rotate(0deg)`;
             }
-            // Default - no zone active yet
+            // Default
             else if (!isZoomMode && !isPanMode) {
                 controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92) rotate(0deg)`;
             }
         }
         
-        // Mouse/Touch end
+        // Touch end
         function handleEnd(e) {
             if (!isDragging) return;
             
             const deltaX = wheelPosition.x;
             const deltaY = wheelPosition.y;
             
-            // Click - play/pause
+            // Click
             if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
                 controller.classList.add('clicked');
                 setTimeout(() => controller.classList.remove('clicked'), 300);
                 togglePlayPause();
             }
             
-            // Seek used - pause
+            // Seek used
             if (wasUsingSeek) {
                 video.pause();
                 isPlaying = false;
                 wasUsingSeek = false;
             }
             
-            // Reset states
-            isZoomMode = false;
-            isPanMode = false;
-            panStarted = false;
+            // COMPLETE reset
             isDragging = false;
             wheelPosition = { x: 0, y: 0 };
             seekSpeed = 0;
-            targetZoom = 1;
-            targetRotation = 0;
             activeZone = null;
             
             if (animationFrame !== null) {
@@ -375,35 +322,34 @@
                 animationFrame = null;
             }
             
-            if (zoomAnimationFrame !== null) {
-                cancelAnimationFrame(zoomAnimationFrame);
-                zoomAnimationFrame = null;
-            }
-            
             controller.classList.remove('dragging');
             
-            // Smooth return animation
-            const animateBack = () => {
-                const rotDiff = 0 - controllerRotation;
-                if (Math.abs(rotDiff) > 0.5) {
-                    controllerRotation += rotDiff * 0.15;
+            // Smooth zoom out
+            const zoomOut = () => {
+                if (zoom > 1.01) {
+                    zoom += (1 - zoom) * 0.15;
+                    controllerRotation += (0 - controllerRotation) * 0.15;
+                    
+                    updateVideoTransform();
                     controller.style.transform = `translateX(-50%) rotate(${controllerRotation}deg)`;
-                    requestAnimationFrame(animateBack);
+                    
+                    requestAnimationFrame(zoomOut);
                 } else {
+                    zoom = 1;
                     controllerRotation = 0;
+                    isZoomMode = false;
+                    isPanMode = false;
+                    panX = 0;
+                    panY = 0;
+                    
+                    updateVideoTransform();
                     controller.style.transform = '';
                 }
             };
-            animateBack();
             
-            animateZoom();
-            
-            // Reset pan smoothly
-            setTimeout(() => {
-                panX = 0;
-                panY = 0;
-                updateVideoTransform();
-            }, 300);
+            if (isZoomMode || isPanMode) {
+                zoomOut();
+            }
         }
         
         // Event listeners
