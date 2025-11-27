@@ -158,7 +158,7 @@
         // Update video transform
         function updateVideoTransform() {
             video.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
-            video.style.transformOrigin = 'center center';
+            video.style.transformOrigin = 'center calc(50% + 50px)'; // Anchor point 50px lower
         }
         
         // Mouse/Touch start
@@ -203,10 +203,24 @@
                     isPanMode = true;
                     video.pause();
                     isPlaying = false;
+                    
+                    // CRITICAL: Stop any seek animation immediately
+                    seekSpeed = 0;
+                    if (animationFrame !== null) {
+                        cancelAnimationFrame(animationFrame);
+                        animationFrame = null;
+                    }
                 }
                 
                 // ZOOM INSTANTLY LOCKED AT 200%
                 zoom = 2.0;
+                
+                // CRITICAL: Ensure video is frozen
+                seekSpeed = 0;
+                if (animationFrame !== null) {
+                    cancelAnimationFrame(animationFrame);
+                    animationFrame = null;
+                }
                 
                 // ALL directions work as pan with FASTER SPEED and LARGER RANGE
                 const screenWidth = window.innerWidth;
@@ -224,6 +238,13 @@
             else if (isPanMode) {
                 // PAN MODE CONTINUES - zoom LOCKED at 200%
                 zoom = 2.0;
+                
+                // CRITICAL: Keep video frozen
+                seekSpeed = 0;
+                if (animationFrame !== null) {
+                    cancelAnimationFrame(animationFrame);
+                    animationFrame = null;
+                }
                 
                 const screenWidth = window.innerWidth;
                 const screenHeight = window.innerHeight;
