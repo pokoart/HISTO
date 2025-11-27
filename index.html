@@ -226,17 +226,18 @@
             const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
             
             // Calculate angle from RIGHT (0° = right, counter-clockwise)
+            // Using standard math convention: 0° right, 90° up, 180° left, 270° down
             let angle = Math.atan2(-deltaY, deltaX) * (180 / Math.PI);
             if (angle < 0) angle += 360;
             
-            // Zone detection - CORRECT zones from "Funkce" diagram:
-            // VIDEO VZAD (pink): 150° to 210° (narrow left sector)
-            // ZOOM (top): 60° to 120° (narrow top sector) + MUST move up (deltaY < -30)
-            // VIDEO VPRED (blue): 330° to 30° (narrow right sector, wraps 0°)
+            // Zone detection based on precise diagram with protractor:
+            // VIDEO VZAD (pink): 180° to 315°
+            // ZOOM (top): 315° to 45° (wraps around 0°) + MUST move up (deltaY < -40)
+            // VIDEO VPRED (blue): 45° to 180°
             
-            const isVideoVzadZone = (angle >= 150 && angle <= 210) && distance > 15;
-            const isZoomZone = ((angle >= 60 && angle <= 120)) && deltaY < -30;
-            const isVideoVpredZone = ((angle >= 330 || angle <= 30)) && distance > 15;
+            const isVideoVzadZone = (angle >= 180 && angle <= 315) && distance > 15;
+            const isZoomZone = ((angle >= 315 || angle <= 45)) && deltaY < -40; // Threshold to prevent accidental zoom
+            const isVideoVpredZone = (angle >= 45 && angle <= 180) && distance > 15;
             
             // ZOOM/PAN MODE
             if (isZoomZone || (isZoomMode && isPanMode)) {
@@ -270,6 +271,10 @@
                         const panDeltaY = deltaY - panAnchor.y;
                         
                         // COMPRESSED SPACE - blue sector maps to entire background
+                        // Top of blue space = top of background
+                        // Bottom of blue space = bottom of background
+                        // This means higher multipliers, especially vertical
+                        
                         const screenWidth = window.innerWidth;
                         const screenHeight = window.innerHeight;
                         
@@ -290,6 +295,7 @@
                         const acceleration = Math.pow(normalizedDist, 1.2);
                         
                         // Calculate pan to cover ENTIRE background
+                        // Map controller movement to max pan range
                         const panRatioX = (panDeltaX / blueSpaceRadius);
                         const panRatioY = (panDeltaY / blueSpaceRadius);
                         
@@ -304,7 +310,7 @@
                 // Controller ALWAYS follows finger
                 controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) rotate(${controllerRotation}deg)`;
             }
-            // VIDEO VPRED (blue zone, 330° to 30°, wraps 0°)
+            // VIDEO VPRED (blue zone, 45° to 180°)
             else if (isVideoVpredZone && !isZoomMode) {
                 wasUsingSeek = true;
                 seekSpeed = calculateSeekSpeed(deltaX);
@@ -315,7 +321,7 @@
                 
                 controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92) rotate(0deg)`;
             }
-            // VIDEO VZAD (pink zone, 150° to 210°)
+            // VIDEO VZAD (pink zone, 180° to 315°)
             else if (isVideoVzadZone && !isZoomMode) {
                 wasUsingSeek = true;
                 seekSpeed = calculateSeekSpeed(deltaX);
