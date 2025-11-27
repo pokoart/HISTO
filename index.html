@@ -158,7 +158,7 @@
         // Update video transform
         function updateVideoTransform() {
             video.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
-            video.style.transformOrigin = 'center calc(50% + 150px)'; // Anchor point 150px lower
+            video.style.transformOrigin = 'center calc(50% + 300px)'; // Anchor point 300px lower
         }
         
         // Mouse/Touch start
@@ -222,12 +222,12 @@
                     animationFrame = null;
                 }
                 
-                // ALL directions work as pan with FASTER SPEED and LARGER RANGE
+                // ALL directions work as pan with FASTER SPEED and MUCH LARGER RANGE
                 const screenWidth = window.innerWidth;
                 const screenHeight = window.innerHeight;
-                // At 180% zoom, video is 1.8x bigger, so we can pan ~40% in each direction
-                const maxPanX = screenWidth * 0.35; // 35% for 180% zoom
-                const maxPanY = screenHeight * 0.35; // 35% for 180% zoom
+                // Increased range to reach top of background with 300px lower anchor point
+                const maxPanX = screenWidth * 0.5; // 50% - very large range
+                const maxPanY = screenHeight * 0.5; // 50% - very large range
                 const panSpeed = 3.5;
                 
                 panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed));
@@ -249,8 +249,8 @@
                 
                 const screenWidth = window.innerWidth;
                 const screenHeight = window.innerHeight;
-                const maxPanX = screenWidth * 0.35; // 35% for 180% zoom
-                const maxPanY = screenHeight * 0.35; // 35% for 180% zoom
+                const maxPanX = screenWidth * 0.5; // 50% - very large range
+                const maxPanY = screenHeight * 0.5; // 50% - very large range
                 const panSpeed = 3.5;
                 
                 panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed));
