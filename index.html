@@ -222,16 +222,29 @@
                     animationFrame = null;
                 }
                 
-                // ALL directions work as pan with FASTER SPEED and MUCH LARGER RANGE
+                // ALL directions work as pan with ASYMMETRIC RANGE
                 const screenWidth = window.innerWidth;
                 const screenHeight = window.innerHeight;
-                // Increased range to reach top of background with 300px lower anchor point
-                const maxPanX = screenWidth * 0.5; // 50% - very large range
-                const maxPanY = screenHeight * 0.5; // 50% - very large range
                 const panSpeed = 3.5;
                 
+                // Horizontal pan (symmetric)
+                const maxPanX = screenWidth * 0.35; // 35% horizontal
                 panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed));
-                panY = -Math.max(-maxPanY, Math.min(maxPanY, deltaY * panSpeed));
+                
+                // Vertical pan (ASYMMETRIC - more UP, less DOWN)
+                const maxPanUp = screenHeight * 0.7;   // 70% upward (to reach top)
+                const maxPanDown = screenHeight * 0.15; // 15% downward (prevent bottom overshoot)
+                
+                const rawPanY = -deltaY * panSpeed; // INVERTED
+                
+                // Apply asymmetric limits
+                if (rawPanY > 0) {
+                    // Panning UP (positive rawPanY)
+                    panY = Math.min(maxPanUp, rawPanY);
+                } else {
+                    // Panning DOWN (negative rawPanY)
+                    panY = Math.max(-maxPanDown, rawPanY);
+                }
                 
                 updateVideoTransform();
             }
@@ -249,12 +262,23 @@
                 
                 const screenWidth = window.innerWidth;
                 const screenHeight = window.innerHeight;
-                const maxPanX = screenWidth * 0.5; // 50% - very large range
-                const maxPanY = screenHeight * 0.5; // 50% - very large range
                 const panSpeed = 3.5;
                 
+                // Horizontal pan (symmetric)
+                const maxPanX = screenWidth * 0.35;
                 panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed));
-                panY = -Math.max(-maxPanY, Math.min(maxPanY, deltaY * panSpeed));
+                
+                // Vertical pan (ASYMMETRIC - more UP, less DOWN)
+                const maxPanUp = screenHeight * 0.7;   // 70% upward
+                const maxPanDown = screenHeight * 0.15; // 15% downward
+                
+                const rawPanY = -deltaY * panSpeed;
+                
+                if (rawPanY > 0) {
+                    panY = Math.min(maxPanUp, rawPanY);
+                } else {
+                    panY = Math.max(-maxPanDown, rawPanY);
+                }
                 
                 updateVideoTransform();
             }
