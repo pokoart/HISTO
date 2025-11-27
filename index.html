@@ -37,18 +37,18 @@
         }
         
         #video {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 100%;
-            height: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
             object-fit: cover;
-            transform: translate(-50%, -50%);
+            z-index: 1;
             transition: transform 0.3s ease;
         }
         
         .controller {
-            position: absolute;
+            position: fixed;
             bottom: 0;
             left: 50%;
             transform: translateX(-50%);
@@ -98,6 +98,7 @@
         let seekSpeed = 0;
         let animationFrame = null;
         let isZoomMode = false;
+        let isPanMode = false;
         
         // Toggle play/pause
         function togglePlayPause() {
@@ -135,7 +136,10 @@
         
         // Update video transform
         function updateVideoTransform() {
-            video.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${zoom})`;
+            const centerX = window.innerWidth / 2;
+            const centerY = window.innerHeight / 2;
+            video.style.transform = `translate(calc(${-centerX + panX}px), calc(${-centerY + panY}px)) scale(${zoom})`;
+            video.style.transformOrigin = `${centerX}px ${centerY}px`;
         }
         
         // Mouse/Touch start
@@ -151,6 +155,8 @@
             isDragging = true;
             dragStart = { x: centerX, y: centerY };
             wheelPosition = { x: 0, y: 0 };
+            isZoomMode = false;
+            isPanMode = false;
             
             controller.classList.add('dragging', 'pressed');
         }
@@ -170,8 +176,9 @@
             
             controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92)`;
             
-            // Check if moving UP significantly (zoom mode) - narrower threshold
-            if (deltaY < -50 && Math.abs(deltaY) > Math.abs(deltaX) * 1.5) {
+            // Check if moving UP significantly AND vertically dominant (zoom mode entry)
+            // Much stricter threshold: deltaY < -80 AND vertical movement must be 2.5x stronger than horizontal
+            if (!isPanMode && deltaY < -80 && Math.abs(deltaY) > Math.abs(deltaX) * 2.5) {
                 // ZOOM MODE - ALWAYS pause video
                 if (!isZoomMode) {
                     isZoomMode = true;
@@ -190,10 +197,18 @@
                 panY = -Math.max(-maxPanY, Math.min(maxPanY, deltaY * 0.8)); // INVERTED
                 
                 updateVideoTransform();
+                
+                // Once zoom reaches 200%, enter pan mode
+                if (zoom >= 2.0) {
+                    isPanMode = true;
+                }
             }
-            // If already in zoom mode (pan mode), all directions work as pan
-            else if (isZoomMode) {
-                // PAN MODE - all directions (including down) work as pan
+            // If already in pan mode, all directions work as pan with LOCKED 200% zoom
+            else if (isPanMode) {
+                // PAN MODE - zoom is LOCKED at 200%
+                zoom = 2.0; // LOCKED!
+                
+                // All directions work as pan with 3x faster vertical movement
                 const maxPanX = 150;
                 const maxPanY = 150;
                 panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * 0.8)); // INVERTED, horizontal speed
@@ -203,6 +218,12 @@
             }
             // Horizontal movement - seek video (works in both play and pause mode)
             else if (Math.abs(deltaX) > 10) {
+                // Reset zoom if in seek mode
+                zoom = 1;
+                panX = 0;
+                panY = 0;
+                updateVideoTransform();
+                
                 // Calculate seek speed
                 seekSpeed = calculateSeekSpeed(deltaX);
                 
@@ -225,8 +246,9 @@
                 togglePlayPause();
             }
             
-            // Exit zoom mode
+            // Exit zoom and pan mode
             isZoomMode = false;
+            isPanMode = false;
             
             isDragging = false;
             wheelPosition = { x: 0, y: 0 };
@@ -268,6 +290,9 @@
                 e.preventDefault();
             }
         }, { passive: false });
+        
+        // Initialize video position
+        updateVideoTransform();
     </script>
 </body>
 </html>
