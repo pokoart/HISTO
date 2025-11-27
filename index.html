@@ -257,7 +257,6 @@
                 if (isZoomMode && zoom >= 1.98) {
                     const distanceFromOrigin = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
                     
-                    // Position stays LOCKED until controller reaches origin
                     // If controller comes back down close to origin, activate pan
                     if (distanceFromOrigin < 100 && !panAnchorSet) {
                         isPanMode = true;
@@ -269,39 +268,26 @@
                     if (isPanMode && panAnchorSet) {
                         const panDeltaX = deltaX - panAnchor.x;
                         const panDeltaY = deltaY - panAnchor.y;
+                        const panDistance = Math.sqrt(panDeltaX * panDeltaX + panDeltaY * panDeltaY);
                         
-                        // COMPRESSED SPACE - blue sector maps to entire background
-                        // Top of blue space = top of background
-                        // Bottom of blue space = bottom of background
-                        // This means higher multipliers, especially vertical
-                        
+                        // "Space for controller move" radius
                         const screenWidth = window.innerWidth;
                         const screenHeight = window.innerHeight;
+                        const controllerSpaceRadius = Math.min(screenWidth, screenHeight) * 0.55;
+                        const normalizedDist = Math.min(panDistance / controllerSpaceRadius, 1);
                         
-                        // Calculate how zoomed video dimensions relate to screen
-                        const zoomedWidth = screenWidth * 2.0;
-                        const zoomedHeight = screenHeight * 2.0;
+                        // Progressive acceleration
+                        const acceleration = Math.pow(normalizedDist, 1.4);
                         
-                        // Maximum possible pan (half of extra size)
-                        const maxPanX = (zoomedWidth - screenWidth) / 2;
-                        const maxPanY = (zoomedHeight - screenHeight) / 2;
+                        // Variable relationship - strong multipliers
+                        const basePanX = 1.2;
+                        const basePanY = 1.5;
                         
-                        // Blue space radius (compressed)
-                        const blueSpaceRadius = Math.min(screenWidth, screenHeight) * 0.5;
-                        const panDistance = Math.sqrt(panDeltaX * panDeltaX + panDeltaY * panDeltaY);
-                        const normalizedDist = Math.min(panDistance / blueSpaceRadius, 1);
+                        const finalPanX = basePanX * (1 + acceleration * 2.5);
+                        const finalPanY = basePanY * (1 + acceleration * 2.5);
                         
-                        // Strong acceleration to reach edges
-                        const acceleration = Math.pow(normalizedDist, 1.2);
-                        
-                        // Calculate pan to cover ENTIRE background
-                        // Map controller movement to max pan range
-                        const panRatioX = (panDeltaX / blueSpaceRadius);
-                        const panRatioY = (panDeltaY / blueSpaceRadius);
-                        
-                        // Direct mapping with acceleration
-                        panX = -(panRatioX * maxPanX * (1 + acceleration));
-                        panY = -(panRatioY * maxPanY * (1 + acceleration));
+                        panX = -(panDeltaX * finalPanX);
+                        panY = -(panDeltaY * finalPanY);
                         
                         updateVideoTransform();
                     }
