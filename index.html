@@ -40,7 +40,7 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transform-origin: 50% 92%;
+            transform-origin: 50% 88%;
             transition: transform 0.3s ease;
         }
         
@@ -226,18 +226,17 @@
             const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
             
             // Calculate angle from RIGHT (0° = right, counter-clockwise)
-            // Using standard math convention: 0° right, 90° up, 180° left, 270° down
             let angle = Math.atan2(-deltaY, deltaX) * (180 / Math.PI);
             if (angle < 0) angle += 360;
             
-            // Zone detection based on precise diagram with protractor:
-            // VIDEO VZAD (pink): 180° to 315°
-            // ZOOM (top): 315° to 45° (wraps around 0°) + MUST move up (deltaY < -40)
-            // VIDEO VPRED (blue): 45° to 180°
+            // Zone detection - CORRECT zones from "Funkce" diagram:
+            // VIDEO VZAD (pink): 150° to 210° (narrow left sector)
+            // ZOOM (top): 60° to 120° (narrow top sector) + MUST move up (deltaY < -30)
+            // VIDEO VPRED (blue): 330° to 30° (narrow right sector, wraps 0°)
             
-            const isVideoVzadZone = (angle >= 180 && angle <= 315) && distance > 15;
-            const isZoomZone = ((angle >= 315 || angle <= 45)) && deltaY < -40; // Threshold to prevent accidental zoom
-            const isVideoVpredZone = (angle >= 45 && angle <= 180) && distance > 15;
+            const isVideoVzadZone = (angle >= 150 && angle <= 210) && distance > 15;
+            const isZoomZone = ((angle >= 60 && angle <= 120)) && deltaY < -30;
+            const isVideoVpredZone = ((angle >= 330 || angle <= 30)) && distance > 15;
             
             // ZOOM/PAN MODE
             if (isZoomZone || (isZoomMode && isPanMode)) {
@@ -257,6 +256,7 @@
                 if (isZoomMode && zoom >= 1.98) {
                     const distanceFromOrigin = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
                     
+                    // Position stays LOCKED until controller reaches origin
                     // If controller comes back down close to origin, activate pan
                     if (distanceFromOrigin < 100 && !panAnchorSet) {
                         isPanMode = true;
@@ -268,26 +268,34 @@
                     if (isPanMode && panAnchorSet) {
                         const panDeltaX = deltaX - panAnchor.x;
                         const panDeltaY = deltaY - panAnchor.y;
-                        const panDistance = Math.sqrt(panDeltaX * panDeltaX + panDeltaY * panDeltaY);
                         
-                        // "Space for controller move" radius
+                        // COMPRESSED SPACE - blue sector maps to entire background
                         const screenWidth = window.innerWidth;
                         const screenHeight = window.innerHeight;
-                        const controllerSpaceRadius = Math.min(screenWidth, screenHeight) * 0.55;
-                        const normalizedDist = Math.min(panDistance / controllerSpaceRadius, 1);
                         
-                        // Progressive acceleration
-                        const acceleration = Math.pow(normalizedDist, 1.4);
+                        // Calculate how zoomed video dimensions relate to screen
+                        const zoomedWidth = screenWidth * 2.0;
+                        const zoomedHeight = screenHeight * 2.0;
                         
-                        // Variable relationship - strong multipliers
-                        const basePanX = 1.2;
-                        const basePanY = 1.5;
+                        // Maximum possible pan (half of extra size)
+                        const maxPanX = (zoomedWidth - screenWidth) / 2;
+                        const maxPanY = (zoomedHeight - screenHeight) / 2;
                         
-                        const finalPanX = basePanX * (1 + acceleration * 2.5);
-                        const finalPanY = basePanY * (1 + acceleration * 2.5);
+                        // Blue space radius (compressed)
+                        const blueSpaceRadius = Math.min(screenWidth, screenHeight) * 0.5;
+                        const panDistance = Math.sqrt(panDeltaX * panDeltaX + panDeltaY * panDeltaY);
+                        const normalizedDist = Math.min(panDistance / blueSpaceRadius, 1);
                         
-                        panX = -(panDeltaX * finalPanX);
-                        panY = -(panDeltaY * finalPanY);
+                        // Strong acceleration to reach edges
+                        const acceleration = Math.pow(normalizedDist, 1.2);
+                        
+                        // Calculate pan to cover ENTIRE background
+                        const panRatioX = (panDeltaX / blueSpaceRadius);
+                        const panRatioY = (panDeltaY / blueSpaceRadius);
+                        
+                        // Direct mapping with acceleration
+                        panX = -(panRatioX * maxPanX * (1 + acceleration));
+                        panY = -(panRatioY * maxPanY * (1 + acceleration));
                         
                         updateVideoTransform();
                     }
@@ -296,7 +304,7 @@
                 // Controller ALWAYS follows finger
                 controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) rotate(${controllerRotation}deg)`;
             }
-            // VIDEO VPRED (blue zone, 45° to 180°)
+            // VIDEO VPRED (blue zone, 330° to 30°, wraps 0°)
             else if (isVideoVpredZone && !isZoomMode) {
                 wasUsingSeek = true;
                 seekSpeed = calculateSeekSpeed(deltaX);
@@ -307,7 +315,7 @@
                 
                 controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92) rotate(0deg)`;
             }
-            // VIDEO VZAD (pink zone, 180° to 315°)
+            // VIDEO VZAD (pink zone, 150° to 210°)
             else if (isVideoVzadZone && !isZoomMode) {
                 wasUsingSeek = true;
                 seekSpeed = calculateSeekSpeed(deltaX);
@@ -345,7 +353,7 @@
                 wasUsingSeek = false;
             }
             
-            // Exit modes
+            // IMPORTANT: Reset all states COMPLETELY for next interaction
             isZoomMode = false;
             isPanMode = false;
             panAnchorSet = false;
