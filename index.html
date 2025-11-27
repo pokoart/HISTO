@@ -8,8 +8,8 @@
     <title>Video Player</title>
     <style>
         * {
-            margin: 0;
-            padding: 0;
+            margin: 0 !important;
+            padding: 0 !important;
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
         }
@@ -17,25 +17,26 @@
         html {
             width: 100vw;
             height: 100vh;
-            height: 100dvh;
             overflow: hidden;
             position: fixed;
             background: black;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
         }
         
         body {
             width: 100vw;
             height: 100vh;
-            height: 100dvh;
             overflow: hidden;
             position: fixed;
             background: black;
-            margin: 0;
-            padding: 0;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            /* Aggressive full-screen for iPhone */
-            padding-bottom: env(safe-area-inset-bottom);
-            padding-top: env(safe-area-inset-top);
         }
         
         #app {
@@ -46,12 +47,8 @@
             bottom: 0;
             width: 100vw;
             height: 100vh;
-            height: 100dvh;
             background: black;
             overflow: hidden;
-            /* Remove any potential margins */
-            margin: 0;
-            padding: 0;
         }
         
         #video {
@@ -62,17 +59,13 @@
             bottom: 0;
             width: 100vw;
             height: 100vh;
-            height: 100dvh;
             object-fit: cover;
             transition: transform 0.3s ease;
-            /* Force video to extend into safe areas */
-            margin: 0;
-            padding: 0;
         }
         
         .controller {
             position: fixed;
-            bottom: 0;
+            bottom: -20px !important;
             left: 50%;
             transform: translateX(-50%);
             cursor: pointer;
@@ -82,7 +75,6 @@
             z-index: 20;
             width: 160px;
             height: 160px;
-            margin-bottom: env(safe-area-inset-bottom, 0px);
         }
         
         .controller.dragging {
@@ -198,24 +190,23 @@
             
             controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92)`;
             
-            // If already in PAN MODE - all directions are pan with LOCKED 200% zoom
+            // If already in PAN MODE - zoom is LOCKED at 200%, all directions are pan
             if (isPanMode) {
-                // PAN MODE - zoom is PERMANENTLY LOCKED at 200%
-                zoom = 2.0; // LOCKED! Never changes in pan mode
+                // PAN MODE - zoom PERMANENTLY LOCKED at 200%
+                zoom = 2.0; // NEVER CHANGES!
                 
-                // All directions (UP, DOWN, LEFT, RIGHT) work as pan with SAME FAST SPEED
-                const maxPanX = 150;
-                const maxPanY = 150;
-                const panSpeed = 2.4; // Fast speed for all directions
+                // All directions work as pan with SAME FAST SPEED
+                const maxPan = 300;
+                const panSpeed = 2.4;
                 
-                panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed)); // INVERTED
-                panY = -Math.max(-maxPanY, Math.min(maxPanY, deltaY * panSpeed)); // INVERTED
+                panX = -Math.max(-maxPan, Math.min(maxPan, deltaX * panSpeed)); // INVERTED
+                panY = -Math.max(-maxPan, Math.min(maxPan, deltaY * panSpeed)); // INVERTED
                 
                 updateVideoTransform();
             }
-            // Check if moving UP significantly AND vertically dominant (zoom mode entry)
-            else if (!isZoomMode && deltaY < -80 && Math.abs(deltaY) > Math.abs(deltaX) * 2.5) {
-                // ZOOM MODE - ALWAYS pause video
+            // Check if moving UP significantly (zoom mode entry)
+            else if (deltaY < -80 && Math.abs(deltaY) > Math.abs(deltaX) * 2.5) {
+                // ZOOM MODE - pause video
                 if (!isZoomMode) {
                     isZoomMode = true;
                     video.pause();
@@ -224,25 +215,23 @@
                 
                 // Calculate zoom (up to 200%)
                 const zoomAmount = Math.min(Math.abs(deltaY) / 150, 1);
-                zoom = 1 + zoomAmount * 1.0; // 1.0 to 2.0 (200%)
+                zoom = 1 + zoomAmount * 1.0; // 1.0 to 2.0
                 
-                // In zoom mode, movement = pan (INVERTED - contra)
-                const maxPanX = 150;
-                const maxPanY = 150;
-                panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * 0.8)); // INVERTED
-                panY = -Math.max(-maxPanY, Math.min(maxPanY, deltaY * 0.8)); // INVERTED
+                // Movement creates pan effect
+                const maxPan = 300;
+                panX = -Math.max(-maxPan, Math.min(maxPan, deltaX * 0.8));
+                panY = -Math.max(-maxPan, Math.min(maxPan, deltaY * 0.8));
                 
                 updateVideoTransform();
                 
-                // Once zoom reaches 200%, ENTER PAN MODE (point of no return)
+                // When zoom reaches 200%, switch to PAN MODE
                 if (zoom >= 2.0) {
                     isPanMode = true;
-                    zoom = 2.0; // Lock it at exactly 200%
                 }
             }
-            // Horizontal movement - seek video (works in both play and pause mode)
+            // Horizontal movement - seek video
             else if (Math.abs(deltaX) > 10) {
-                // Reset zoom if in seek mode
+                // Reset zoom
                 zoom = 1;
                 panX = 0;
                 panY = 0;
@@ -251,7 +240,6 @@
                 // Calculate seek speed
                 seekSpeed = calculateSeekSpeed(deltaX);
                 
-                // Start seeking animation if not already running
                 if (animationFrame === null) {
                     seekVideo();
                 }
@@ -270,7 +258,7 @@
                 togglePlayPause();
             }
             
-            // Exit zoom and pan mode
+            // Exit all modes
             isZoomMode = false;
             isPanMode = false;
             
@@ -286,7 +274,7 @@
             controller.classList.remove('dragging', 'pressed');
             controller.style.transform = '';
             
-            // Reset zoom and pan
+            // Reset zoom and pan when releasing
             setTimeout(() => {
                 zoom = 1;
                 panX = 0;
