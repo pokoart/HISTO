@@ -49,7 +49,7 @@
         
         .controller {
             position: absolute;
-            bottom: 3rem;
+            bottom: 0;
             left: 50%;
             transform: translateX(-50%);
             cursor: pointer;
@@ -110,7 +110,7 @@
             }
         }
         
-        // Seek animation with very smooth acceleration (0% to 200%)
+        // Seek animation with smooth acceleration (0% to 150%)
         function seekVideo() {
             if (seekSpeed !== 0) {
                 const newTime = Math.max(0, Math.min(video.duration, video.currentTime + seekSpeed));
@@ -119,15 +119,15 @@
             }
         }
         
-        // Calculate speed with very gentle curve from 0% to 200%
+        // Calculate speed with gentle curve from 0% to 150%
         function calculateSeekSpeed(deltaX) {
-            const maxDelta = 250; // Increased for slower acceleration
+            const maxDelta = 250;
             const normalizedDelta = Math.max(-maxDelta, Math.min(maxDelta, deltaX));
             const ratio = Math.abs(normalizedDelta) / maxDelta; // 0 to 1
             
-            // Very gentle acceleration curve
-            const curve = Math.pow(ratio, 2.5); // Higher power = slower start
-            const maxSpeed = 2; // 200% = 2 seconds per frame at max
+            // Gentle acceleration curve
+            const curve = Math.pow(ratio, 2.5);
+            const maxSpeed = 1.5; // 150% = 1.5 seconds per frame at max
             const direction = normalizedDelta > 0 ? 1 : -1;
             
             return direction * curve * maxSpeed;
@@ -170,8 +170,8 @@
             
             controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92)`;
             
-            // Check if moving UP (zoom mode)
-            if (deltaY < -30) {
+            // Check if moving UP significantly (zoom mode) - narrower threshold
+            if (deltaY < -50 && Math.abs(deltaY) > Math.abs(deltaX) * 1.5) {
                 // ZOOM MODE - ALWAYS pause video
                 if (!isZoomMode) {
                     isZoomMode = true;
@@ -184,23 +184,29 @@
                 zoom = 1 + zoomAmount * 1.0; // 1.0 to 2.0 (200%)
                 
                 // In zoom mode, movement = pan (INVERTED - contra)
-                const maxPan = 150;
-                panX = -Math.max(-maxPan, Math.min(maxPan, deltaX * 0.8)); // INVERTED
-                panY = -Math.max(-maxPan, Math.min(maxPan, deltaY * 0.8)); // INVERTED
+                const maxPanX = 150;
+                const maxPanY = 150;
+                panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * 0.8)); // INVERTED
+                panY = -Math.max(-maxPanY, Math.min(maxPanY, deltaY * 0.8)); // INVERTED
                 
                 updateVideoTransform();
             }
-            // Check if moving DOWN (de-zoom to 100%)
-            else if (deltaY > 30) {
-                zoom = 1;
-                panX = 0;
-                panY = 0;
+            // If already in zoom mode (pan mode), all directions work as pan
+            else if (isZoomMode) {
+                // PAN MODE - all directions (including down) work as pan
+                const maxPanX = 150;
+                const maxPanY = 150;
+                panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * 0.8)); // INVERTED, horizontal speed
+                panY = -Math.max(-maxPanY, Math.min(maxPanY, deltaY * 2.4)); // INVERTED, 3x faster vertically (0.8 * 3 = 2.4)
+                
                 updateVideoTransform();
             }
-            // Horizontal movement - seek video (only when NOT in zoom mode)
-            else if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10 && !isZoomMode) {
+            // Horizontal movement - seek video (works in both play and pause mode)
+            else if (Math.abs(deltaX) > 10) {
+                // Calculate seek speed
                 seekSpeed = calculateSeekSpeed(deltaX);
                 
+                // Start seeking animation if not already running
                 if (animationFrame === null) {
                     seekVideo();
                 }
