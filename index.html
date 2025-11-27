@@ -158,7 +158,7 @@
         // Update video transform
         function updateVideoTransform() {
             video.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
-            video.style.transformOrigin = 'center calc(50% + 100px)'; // Anchor point 100px lower
+            video.style.transformOrigin = 'center calc(50% + 150px)'; // Anchor point 150px lower
         }
         
         // Mouse/Touch start
@@ -198,7 +198,7 @@
             const inZoomZone = deltaY < -50 && Math.abs(deltaY) > Math.abs(deltaX) * 2;
             
             if (inZoomZone) {
-                // INSTANTLY enter PAN MODE with 200% zoom
+                // INSTANTLY enter PAN MODE with 180% zoom
                 if (!isPanMode) {
                     isPanMode = true;
                     video.pause();
@@ -212,8 +212,8 @@
                     }
                 }
                 
-                // ZOOM INSTANTLY LOCKED AT 200%
-                zoom = 2.0;
+                // ZOOM INSTANTLY LOCKED AT 180%
+                zoom = 1.8;
                 
                 // CRITICAL: Ensure video is frozen
                 seekSpeed = 0;
@@ -225,8 +225,9 @@
                 // ALL directions work as pan with FASTER SPEED and LARGER RANGE
                 const screenWidth = window.innerWidth;
                 const screenHeight = window.innerHeight;
-                const maxPanX = screenWidth * 0.55; // Increased from 0.48 to 0.55 (55%)
-                const maxPanY = screenHeight * 0.55; // Increased from 0.48 to 0.55 (55%)
+                // At 180% zoom, video is 1.8x bigger, so we can pan ~40% in each direction
+                const maxPanX = screenWidth * 0.35; // 35% for 180% zoom
+                const maxPanY = screenHeight * 0.35; // 35% for 180% zoom
                 const panSpeed = 3.5;
                 
                 panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed));
@@ -236,8 +237,8 @@
             }
             // If already in PAN MODE - stay in it regardless of direction
             else if (isPanMode) {
-                // PAN MODE CONTINUES - zoom LOCKED at 200%
-                zoom = 2.0;
+                // PAN MODE CONTINUES - zoom LOCKED at 180%
+                zoom = 1.8;
                 
                 // CRITICAL: Keep video frozen
                 seekSpeed = 0;
@@ -248,8 +249,8 @@
                 
                 const screenWidth = window.innerWidth;
                 const screenHeight = window.innerHeight;
-                const maxPanX = screenWidth * 0.55; // Increased from 0.48 to 0.55 (55%)
-                const maxPanY = screenHeight * 0.55; // Increased from 0.48 to 0.55 (55%)
+                const maxPanX = screenWidth * 0.35; // 35% for 180% zoom
+                const maxPanY = screenHeight * 0.35; // 35% for 180% zoom
                 const panSpeed = 3.5;
                 
                 panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed));
