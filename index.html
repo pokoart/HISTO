@@ -158,7 +158,7 @@
         // Update video transform
         function updateVideoTransform() {
             video.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
-            video.style.transformOrigin = 'center calc(50% + 50px)'; // Anchor point 50px lower
+            video.style.transformOrigin = 'center calc(50% + 100px)'; // Anchor point 100px lower
         }
         
         // Mouse/Touch start
@@ -225,8 +225,8 @@
                 // ALL directions work as pan with FASTER SPEED and LARGER RANGE
                 const screenWidth = window.innerWidth;
                 const screenHeight = window.innerHeight;
-                const maxPanX = screenWidth * 0.48; // Increased from 0.4 to 0.48 (48%)
-                const maxPanY = screenHeight * 0.48; // Increased from 0.4 to 0.48 (48%)
+                const maxPanX = screenWidth * 0.55; // Increased from 0.48 to 0.55 (55%)
+                const maxPanY = screenHeight * 0.55; // Increased from 0.48 to 0.55 (55%)
                 const panSpeed = 3.5;
                 
                 panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed));
@@ -248,8 +248,8 @@
                 
                 const screenWidth = window.innerWidth;
                 const screenHeight = window.innerHeight;
-                const maxPanX = screenWidth * 0.48; // Increased from 0.4 to 0.48 (48%)
-                const maxPanY = screenHeight * 0.48; // Increased from 0.4 to 0.48 (48%)
+                const maxPanX = screenWidth * 0.55; // Increased from 0.48 to 0.55 (55%)
+                const maxPanY = screenHeight * 0.55; // Increased from 0.48 to 0.55 (55%)
                 const panSpeed = 3.5;
                 
                 panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed));
@@ -259,6 +259,10 @@
             }
             // Horizontal movement - SEEK MODE
             else if (Math.abs(deltaX) > 10) {
+                // CRITICAL: ALWAYS pause video during seek (forward or backward)
+                video.pause();
+                isPlaying = false;
+                
                 zoom = 1;
                 panX = 0;
                 panY = 0;
