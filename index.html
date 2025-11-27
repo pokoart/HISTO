@@ -192,15 +192,15 @@
             
             wheelPosition = { x: deltaX, y: deltaY };
             
-            controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92)`;
+            // Check if in ZOOM ZONE (moving UP with strong vertical dominance) - MUST BE FIRST!
+            const inZoomZone = deltaY < -50 && Math.abs(deltaY) > Math.abs(deltaX) * 2;
             
-            // Rotate controller -90° in zoom/pan mode
+            // Update controller position with rotation in zoom/pan mode
             if (inZoomZone || isPanMode) {
                 controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92) rotate(-90deg)`;
+            } else {
+                controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92)`;
             }
-            
-            // Check if in ZOOM ZONE (moving UP with strong vertical dominance)
-            const inZoomZone = deltaY < -50 && Math.abs(deltaY) > Math.abs(deltaX) * 2;
             
             if (inZoomZone) {
                 // INSTANTLY enter PAN MODE with 180% zoom
