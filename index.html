@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>Video Player</title>
     <style>
         * {
@@ -113,7 +114,6 @@
         let panY = 0;
         let seekSpeed = 0;
         let animationFrame = null;
-        let isZoomMode = false;
         let isPanMode = false;
         
         // Toggle play/pause
@@ -169,7 +169,6 @@
             isDragging = true;
             dragStart = { x: centerX, y: centerY };
             wheelPosition = { x: 0, y: 0 };
-            isZoomMode = false;
             isPanMode = false;
             
             controller.classList.add('dragging', 'pressed');
@@ -190,12 +189,22 @@
             
             controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92)`;
             
-            // If already in PAN MODE - zoom is LOCKED at 200%, all directions are pan
-            if (isPanMode) {
-                // PAN MODE - zoom PERMANENTLY LOCKED at 200%
-                zoom = 2.0; // NEVER CHANGES!
+            // Check if in ZOOM ZONE (moving UP with strong vertical dominance)
+            // Threshold: deltaY < -50 AND vertical must be 2x stronger than horizontal
+            const inZoomZone = deltaY < -50 && Math.abs(deltaY) > Math.abs(deltaX) * 2;
+            
+            if (inZoomZone) {
+                // INSTANTLY enter PAN MODE with 200% zoom
+                if (!isPanMode) {
+                    isPanMode = true;
+                    video.pause();
+                    isPlaying = false;
+                }
                 
-                // All directions work as pan with SAME FAST SPEED
+                // ZOOM INSTANTLY LOCKED AT 200%
+                zoom = 2.0;
+                
+                // ALL directions work as pan with FAST SPEED
                 const maxPan = 300;
                 const panSpeed = 2.4;
                 
@@ -204,32 +213,21 @@
                 
                 updateVideoTransform();
             }
-            // Check if moving UP significantly (zoom mode entry)
-            else if (deltaY < -80 && Math.abs(deltaY) > Math.abs(deltaX) * 2.5) {
-                // ZOOM MODE - pause video
-                if (!isZoomMode) {
-                    isZoomMode = true;
-                    video.pause();
-                    isPlaying = false;
-                }
+            // If already in PAN MODE - stay in it regardless of direction
+            else if (isPanMode) {
+                // PAN MODE CONTINUES - zoom LOCKED at 200%
+                zoom = 2.0;
                 
-                // Calculate zoom (up to 200%)
-                const zoomAmount = Math.min(Math.abs(deltaY) / 150, 1);
-                zoom = 1 + zoomAmount * 1.0; // 1.0 to 2.0
-                
-                // Movement creates pan effect
+                // ALL directions work as pan
                 const maxPan = 300;
-                panX = -Math.max(-maxPan, Math.min(maxPan, deltaX * 0.8));
-                panY = -Math.max(-maxPan, Math.min(maxPan, deltaY * 0.8));
+                const panSpeed = 2.4;
+                
+                panX = -Math.max(-maxPan, Math.min(maxPan, deltaX * panSpeed)); // INVERTED
+                panY = -Math.max(-maxPan, Math.min(maxPan, deltaY * panSpeed)); // INVERTED
                 
                 updateVideoTransform();
-                
-                // When zoom reaches 200%, switch to PAN MODE
-                if (zoom >= 2.0) {
-                    isPanMode = true;
-                }
             }
-            // Horizontal movement - seek video
+            // Horizontal movement - SEEK MODE (only when NOT in pan mode)
             else if (Math.abs(deltaX) > 10) {
                 // Reset zoom
                 zoom = 1;
@@ -258,8 +256,7 @@
                 togglePlayPause();
             }
             
-            // Exit all modes
-            isZoomMode = false;
+            // Exit pan mode
             isPanMode = false;
             
             isDragging = false;
