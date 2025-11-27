@@ -14,44 +14,65 @@
             -webkit-tap-highlight-color: transparent;
         }
         
-        html, body {
-            width: 100%;
-            height: 100%;
+        html {
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
             overflow: hidden;
-            background: black;
             position: fixed;
-            margin: 0;
-            padding: 0;
+            background: black;
         }
         
         body {
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            position: fixed;
+            background: black;
+            margin: 0;
+            padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            /* Aggressive full-screen for iPhone */
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-top: env(safe-area-inset-top);
         }
         
         #app {
             position: fixed;
             top: 0;
             left: 0;
+            right: 0;
+            bottom: 0;
             width: 100vw;
             height: 100vh;
             height: 100dvh;
             background: black;
             overflow: hidden;
+            /* Remove any potential margins */
+            margin: 0;
+            padding: 0;
         }
         
         #video {
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
+            right: 0;
+            bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
             object-fit: cover;
             transition: transform 0.3s ease;
+            /* Force video to extend into safe areas */
+            margin: 0;
+            padding: 0;
         }
         
         .controller {
-            position: absolute;
-            bottom: 3rem;
+            position: fixed;
+            bottom: 0;
             left: 50%;
             transform: translateX(-50%);
             cursor: pointer;
@@ -61,6 +82,7 @@
             z-index: 20;
             width: 160px;
             height: 160px;
+            margin-bottom: env(safe-area-inset-bottom, 0px);
         }
         
         .controller.dragging {
@@ -113,7 +135,7 @@
             }
         }
         
-        // Seek animation with smooth acceleration (0% to 150%)
+        // Seek animation with smooth acceleration (0% to 75%)
         function seekVideo() {
             if (seekSpeed !== 0) {
                 const newTime = Math.max(0, Math.min(video.duration, video.currentTime + seekSpeed));
@@ -122,7 +144,7 @@
             }
         }
         
-        // Calculate speed with gentle curve from 0% to 150%
+        // Calculate speed with gentle curve from 0% to 75%
         function calculateSeekSpeed(deltaX) {
             const maxDelta = 250;
             const normalizedDelta = Math.max(-maxDelta, Math.min(maxDelta, deltaX));
@@ -130,7 +152,7 @@
             
             // Gentle acceleration curve
             const curve = Math.pow(ratio, 2.5);
-            const maxSpeed = 1.5; // 150% = 1.5 seconds per frame at max
+            const maxSpeed = 0.75; // 75% = 0.75 seconds per frame at max
             const direction = normalizedDelta > 0 ? 1 : -1;
             
             return direction * curve * maxSpeed;
@@ -176,9 +198,23 @@
             
             controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92)`;
             
+            // If already in PAN MODE - all directions are pan with LOCKED 200% zoom
+            if (isPanMode) {
+                // PAN MODE - zoom is PERMANENTLY LOCKED at 200%
+                zoom = 2.0; // LOCKED! Never changes in pan mode
+                
+                // All directions (UP, DOWN, LEFT, RIGHT) work as pan with SAME FAST SPEED
+                const maxPanX = 150;
+                const maxPanY = 150;
+                const panSpeed = 2.4; // Fast speed for all directions
+                
+                panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed)); // INVERTED
+                panY = -Math.max(-maxPanY, Math.min(maxPanY, deltaY * panSpeed)); // INVERTED
+                
+                updateVideoTransform();
+            }
             // Check if moving UP significantly AND vertically dominant (zoom mode entry)
-            // Much stricter threshold: deltaY < -80 AND vertical movement must be 2.5x stronger than horizontal
-            if (!isPanMode && deltaY < -80 && Math.abs(deltaY) > Math.abs(deltaX) * 2.5) {
+            else if (!isZoomMode && deltaY < -80 && Math.abs(deltaY) > Math.abs(deltaX) * 2.5) {
                 // ZOOM MODE - ALWAYS pause video
                 if (!isZoomMode) {
                     isZoomMode = true;
@@ -198,23 +234,11 @@
                 
                 updateVideoTransform();
                 
-                // Once zoom reaches 200%, enter pan mode
+                // Once zoom reaches 200%, ENTER PAN MODE (point of no return)
                 if (zoom >= 2.0) {
                     isPanMode = true;
+                    zoom = 2.0; // Lock it at exactly 200%
                 }
-            }
-            // If already in pan mode, all directions work as pan with LOCKED 200% zoom
-            else if (isPanMode) {
-                // PAN MODE - zoom is LOCKED at 200%
-                zoom = 2.0; // LOCKED!
-                
-                // All directions work as pan with 3x faster vertical movement
-                const maxPanX = 150;
-                const maxPanY = 150;
-                panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * 0.8)); // INVERTED, horizontal speed
-                panY = -Math.max(-maxPanY, Math.min(maxPanY, deltaY * 2.4)); // INVERTED, 3x faster vertically (0.8 * 3 = 2.4)
-                
-                updateVideoTransform();
             }
             // Horizontal movement - seek video (works in both play and pause mode)
             else if (Math.abs(deltaX) > 10) {
