@@ -38,11 +38,13 @@
         
         #video {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            object-fit: cover;
+            top: 50%;
+            left: 50%;
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
+            transform: translate(-50%, -50%);
             z-index: 1;
             transition: transform 0.3s ease;
         }
@@ -136,10 +138,7 @@
         
         // Update video transform
         function updateVideoTransform() {
-            const centerX = window.innerWidth / 2;
-            const centerY = window.innerHeight / 2;
-            video.style.transform = `translate(calc(${-centerX + panX}px), calc(${-centerY + panY}px)) scale(${zoom})`;
-            video.style.transformOrigin = `${centerX}px ${centerY}px`;
+            video.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${zoom})`;
         }
         
         // Mouse/Touch start
@@ -290,9 +289,6 @@
                 e.preventDefault();
             }
         }, { passive: false });
-        
-        // Initialize video position
-        updateVideoTransform();
     </script>
 </body>
 </html>
