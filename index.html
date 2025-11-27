@@ -194,6 +194,11 @@
             
             controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92)`;
             
+            // Rotate controller -90° in zoom/pan mode
+            if (inZoomZone || isPanMode) {
+                controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92) rotate(-90deg)`;
+            }
+            
             // Check if in ZOOM ZONE (moving UP with strong vertical dominance)
             const inZoomZone = deltaY < -50 && Math.abs(deltaY) > Math.abs(deltaX) * 2;
             
@@ -324,7 +329,7 @@
             }
             
             controller.classList.remove('dragging', 'pressed');
-            controller.style.transform = '';
+            controller.style.transform = ''; // Reset includes removing rotation
             
             // Reset zoom and pan when releasing
             video.style.transition = 'transform 0.3s ease';
