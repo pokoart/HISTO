@@ -16,57 +16,48 @@
         }
         
         html {
-            width: 100vw;
-            height: 100vh;
+            width: 100%;
+            height: 100%;
             overflow: hidden;
             position: fixed;
             background: black;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
         }
         
         body {
-            width: 100vw;
-            height: 100vh;
+            width: 100%;
+            height: 100%;
             overflow: hidden;
             position: fixed;
             background: black;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
         
         #app {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            width: 100vw;
-            height: 100vh;
+            top: -50px;
+            left: -50px;
+            right: -50px;
+            bottom: -50px;
+            width: calc(100vw + 100px);
+            height: calc(100vh + 100px);
             background: black;
             overflow: hidden;
         }
         
         #video {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            width: 100vw;
-            height: 100vh;
+            position: absolute;
+            top: 50px;
+            left: 50px;
+            width: calc(100vw + 0px);
+            height: calc(100vh + 0px);
             object-fit: cover;
-            transition: transform 0.3s ease;
+            transition: none;
+            will-change: transform;
         }
         
         .controller {
             position: fixed;
-            bottom: -20px !important;
+            bottom: 20px !important;
             left: 50%;
             transform: translateX(-50%);
             cursor: pointer;
@@ -190,7 +181,6 @@
             controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92)`;
             
             // Check if in ZOOM ZONE (moving UP with strong vertical dominance)
-            // Threshold: deltaY < -50 AND vertical must be 2x stronger than horizontal
             const inZoomZone = deltaY < -50 && Math.abs(deltaY) > Math.abs(deltaX) * 2;
             
             if (inZoomZone) {
@@ -204,12 +194,15 @@
                 // ZOOM INSTANTLY LOCKED AT 200%
                 zoom = 2.0;
                 
-                // ALL directions work as pan with FAST SPEED
-                const maxPan = 300;
-                const panSpeed = 2.4;
+                // ALL directions work as pan with FASTER SPEED and LIMITED RANGE
+                const screenWidth = window.innerWidth;
+                const screenHeight = window.innerHeight;
+                const maxPanX = screenWidth * 0.25;
+                const maxPanY = screenHeight * 0.25;
+                const panSpeed = 3.5;
                 
-                panX = -Math.max(-maxPan, Math.min(maxPan, deltaX * panSpeed)); // INVERTED
-                panY = -Math.max(-maxPan, Math.min(maxPan, deltaY * panSpeed)); // INVERTED
+                panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed));
+                panY = -Math.max(-maxPanY, Math.min(maxPanY, deltaY * panSpeed));
                 
                 updateVideoTransform();
             }
@@ -218,24 +211,24 @@
                 // PAN MODE CONTINUES - zoom LOCKED at 200%
                 zoom = 2.0;
                 
-                // ALL directions work as pan
-                const maxPan = 300;
-                const panSpeed = 2.4;
+                const screenWidth = window.innerWidth;
+                const screenHeight = window.innerHeight;
+                const maxPanX = screenWidth * 0.25;
+                const maxPanY = screenHeight * 0.25;
+                const panSpeed = 3.5;
                 
-                panX = -Math.max(-maxPan, Math.min(maxPan, deltaX * panSpeed)); // INVERTED
-                panY = -Math.max(-maxPan, Math.min(maxPan, deltaY * panSpeed)); // INVERTED
+                panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed));
+                panY = -Math.max(-maxPanY, Math.min(maxPanY, deltaY * panSpeed));
                 
                 updateVideoTransform();
             }
-            // Horizontal movement - SEEK MODE (only when NOT in pan mode)
+            // Horizontal movement - SEEK MODE
             else if (Math.abs(deltaX) > 10) {
-                // Reset zoom
                 zoom = 1;
                 panX = 0;
                 panY = 0;
                 updateVideoTransform();
                 
-                // Calculate seek speed
                 seekSpeed = calculateSeekSpeed(deltaX);
                 
                 if (animationFrame === null) {
@@ -256,9 +249,7 @@
                 togglePlayPause();
             }
             
-            // Exit pan mode
             isPanMode = false;
-            
             isDragging = false;
             wheelPosition = { x: 0, y: 0 };
             seekSpeed = 0;
@@ -272,12 +263,17 @@
             controller.style.transform = '';
             
             // Reset zoom and pan when releasing
+            video.style.transition = 'transform 0.3s ease';
             setTimeout(() => {
                 zoom = 1;
                 panX = 0;
                 panY = 0;
                 updateVideoTransform();
-            }, 300);
+                
+                setTimeout(() => {
+                    video.style.transition = 'none';
+                }, 300);
+            }, 10);
         }
         
         // Event listeners
@@ -290,10 +286,8 @@
         document.addEventListener('mouseup', handleEnd);
         document.addEventListener('touchend', handleEnd);
         
-        // Prevent context menu
         controller.addEventListener('contextmenu', (e) => e.preventDefault());
         
-        // Prevent scrolling
         document.body.addEventListener('touchmove', (e) => {
             if (!isDragging) {
                 e.preventDefault();
