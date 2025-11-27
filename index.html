@@ -96,6 +96,11 @@
         const video = document.getElementById('video');
         const controller = document.getElementById('controller');
         
+        // Show first frame on load
+        video.addEventListener('loadedmetadata', function() {
+            video.currentTime = 0.001; // First frame
+        });
+        
         let isPlaying = false;
         let isDragging = false;
         let dragStart = { x: 0, y: 0 };
@@ -189,16 +194,24 @@
                     isPanMode = true;
                     video.pause();
                     isPlaying = false;
+                    
+                    // Add smooth transition for zoom activation
+                    video.style.transition = 'transform 0.2s ease-out';
+                    
+                    // Remove transition after animation completes
+                    setTimeout(() => {
+                        video.style.transition = 'none';
+                    }, 200);
                 }
                 
                 // ZOOM INSTANTLY LOCKED AT 200%
                 zoom = 2.0;
                 
-                // ALL directions work as pan with FASTER SPEED and LIMITED RANGE
+                // ALL directions work as pan with FASTER SPEED and LARGER RANGE
                 const screenWidth = window.innerWidth;
                 const screenHeight = window.innerHeight;
-                const maxPanX = screenWidth * 0.25;
-                const maxPanY = screenHeight * 0.25;
+                const maxPanX = screenWidth * 0.4; // Increased from 0.25 to 0.4 (40%)
+                const maxPanY = screenHeight * 0.4; // Increased from 0.25 to 0.4 (40%)
                 const panSpeed = 3.5;
                 
                 panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed));
@@ -213,8 +226,8 @@
                 
                 const screenWidth = window.innerWidth;
                 const screenHeight = window.innerHeight;
-                const maxPanX = screenWidth * 0.25;
-                const maxPanY = screenHeight * 0.25;
+                const maxPanX = screenWidth * 0.4; // Increased from 0.25 to 0.4 (40%)
+                const maxPanY = screenHeight * 0.4; // Increased from 0.25 to 0.4 (40%)
                 const panSpeed = 3.5;
                 
                 panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed));
