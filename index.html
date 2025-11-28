@@ -30,26 +30,34 @@
             position: fixed;
             background: black;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            /* KEY: Use env() for safe areas */
+            padding: 0 !important;
+            margin: 0 !important;
         }
         
         #app {
             position: fixed;
-            top: -50px;
-            left: -50px;
-            right: -50px;
-            bottom: -50px;
-            width: calc(100vw + 100px);
-            height: calc(100vh + 100px);
+            /* Cover entire screen including safe areas */
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            /* Extend into safe areas */
+            width: 100vw;
+            height: 100vh;
+            /* Also use dvh for dynamic viewport height on iOS */
+            height: 100dvh;
             background: black;
             overflow: hidden;
         }
         
         #video {
             position: absolute;
-            top: 50px;
-            left: 50px;
-            width: calc(100vw + 0px);
-            height: calc(100vh + 0px);
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
             object-fit: cover;
             transition: none;
             will-change: transform;
@@ -57,7 +65,8 @@
         
         .controller {
             position: fixed;
-            bottom: 20px !important;
+            /* Position from bottom using safe area */
+            bottom: calc(20px + env(safe-area-inset-bottom));
             left: 50%;
             transform: translateX(-50%);
             cursor: pointer;
@@ -75,6 +84,15 @@
         
         .controller.pressed {
             transform: translateX(-50%) scale(0.92);
+        }
+        
+        /* Ensure full bleed on iOS PWA */
+        @supports (padding-top: env(safe-area-inset-top)) {
+            #app {
+                /* Extend beyond safe areas */
+                padding-top: 0 !important;
+                padding-bottom: 0 !important;
+            }
         }
     </style>
 </head>
