@@ -35,7 +35,6 @@
             top: 0;
             left: 0;
             width: 100vw;
-            /* HACK: Make it taller to cover bottom safe area */
             height: calc(100vh + 50px);
             background: #000000;
             overflow: hidden;
@@ -46,7 +45,6 @@
             top: 0;
             left: 0;
             width: 100vw;
-            /* HACK: Video is taller and covers the bottom black bar */
             height: calc(100vh + 50px);
             object-fit: cover;
             transition: none;
@@ -56,7 +54,6 @@
         
         .controller {
             position: fixed;
-            /* Keep controller in visible area */
             bottom: calc(20px + env(safe-area-inset-bottom, 34px));
             left: 50%;
             transform: translateX(-50%);
@@ -113,11 +110,13 @@
         let dragStart = { x: 0, y: 0 };
         let wheelPosition = { x: 0, y: 0 };
         let zoom = 1;
+        let displayZoom = 1; // Visual zoom (animated)
         let panX = 0;
         let panY = 0;
         let seekSpeed = 0;
         let animationFrame = null;
         let isPanMode = false;
+        let zoomAnimationFrame = null;
         
         function togglePlayPause() {
             if (video.paused) {
@@ -147,8 +146,24 @@
             return direction * curve * maxSpeed;
         }
         
+        // Animate zoom IN with easing
+        function animateZoomIn() {
+            const targetZoom = 1.8;
+            const easeSpeed = 0.12; // Adjust for faster/slower animation
+            
+            if (displayZoom < targetZoom - 0.01) {
+                displayZoom += (targetZoom - displayZoom) * easeSpeed;
+                updateVideoTransform();
+                zoomAnimationFrame = requestAnimationFrame(animateZoomIn);
+            } else {
+                displayZoom = targetZoom;
+                updateVideoTransform();
+                zoomAnimationFrame = null;
+            }
+        }
+        
         function updateVideoTransform() {
-            video.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+            video.style.transform = `translate(${panX}px, ${panY}px) scale(${displayZoom})`;
             video.style.transformOrigin = 'center calc(50% + 300px)';
         }
         
@@ -198,6 +213,11 @@
                     if (animationFrame !== null) {
                         cancelAnimationFrame(animationFrame);
                         animationFrame = null;
+                    }
+                    
+                    // Start zoom IN animation
+                    if (zoomAnimationFrame === null) {
+                        animateZoomIn();
                     }
                 }
                 
@@ -261,6 +281,7 @@
                 isPlaying = false;
                 
                 zoom = 1;
+                displayZoom = 1;
                 panX = 0;
                 panY = 0;
                 updateVideoTransform();
@@ -293,12 +314,20 @@
                 animationFrame = null;
             }
             
+            // Stop zoom animation if running
+            if (zoomAnimationFrame !== null) {
+                cancelAnimationFrame(zoomAnimationFrame);
+                zoomAnimationFrame = null;
+            }
+            
             controller.classList.remove('dragging', 'pressed');
             controller.style.transform = '';
             
-            video.style.transition = 'transform 0.3s ease';
+            // Reset zoom and pan with CSS transition (existing behavior)
+            video.style.transition = 'transform 0.3s ease-out';
             setTimeout(() => {
                 zoom = 1;
+                displayZoom = 1;
                 panX = 0;
                 panY = 0;
                 updateVideoTransform();
