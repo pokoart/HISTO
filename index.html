@@ -54,7 +54,7 @@
         
         .controller {
             position: fixed;
-            bottom: calc(20px + env(safe-area-inset-bottom, 34px));
+            bottom: -10px;
             left: 50%;
             transform: translateX(-50%);
             cursor: pointer;
@@ -108,7 +108,7 @@
         let isPlaying = false;
         let isDragging = false;
         let dragStart = { x: 0, y: 0 };
-        let panStart = { x: 0, y: 0 }; // Separate start point for panning
+        let panStart = { x: 0, y: 0 };
         let wheelPosition = { x: 0, y: 0 };
         let zoom = 1;
         let panX = 0;
@@ -202,14 +202,12 @@
                         animationFrame = null;
                     }
                     
-                    // Start zoom IN with CSS transition
                     video.style.transition = 'transform 0.3s ease-out';
                     zoom = 1.8;
                     panX = 0;
                     panY = 0;
                     updateVideoTransform();
                     
-                    // After transition, disable it and set pan start point
                     setTimeout(() => {
                         video.style.transition = 'none';
                         zoomInTransitionDone = true;
@@ -222,15 +220,12 @@
                     animationFrame = null;
                 }
                 
-                // Only allow panning after zoom transition is done
                 if (zoomInTransitionDone) {
-                    // Set pan start point once when transition finishes
                     if (!panStartSet) {
                         panStart = { x: clientX, y: clientY };
                         panStartSet = true;
                     }
                     
-                    // Calculate pan from the NEW start point
                     const panDeltaX = clientX - panStart.x;
                     const panDeltaY = clientY - panStart.y;
                     
@@ -264,13 +259,11 @@
                 }
                 
                 if (zoomInTransitionDone) {
-                    // Set pan start point once when transition finishes
                     if (!panStartSet) {
                         panStart = { x: clientX, y: clientY };
                         panStartSet = true;
                     }
                     
-                    // Calculate pan from the NEW start point
                     const panDeltaX = clientX - panStart.x;
                     const panDeltaY = clientY - panStart.y;
                     
@@ -337,7 +330,6 @@
             controller.classList.remove('dragging', 'pressed');
             controller.style.transform = '';
             
-            // Zoom OUT with CSS transition
             video.style.transition = 'transform 0.3s ease-out';
             setTimeout(() => {
                 zoom = 1;
