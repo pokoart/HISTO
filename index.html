@@ -3,13 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <!-- PWA / Fullscreen meta tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000000">
     <meta name="apple-mobile-web-app-title" content="Player">
-    <!-- Link to manifest -->
     <link rel="manifest" href="./manifest.json">
     <link rel="apple-touch-icon" href="./controller.png">
     <title>Video Player</title>
@@ -28,19 +26,17 @@
             position: fixed;
             top: 0;
             left: 0;
-            right: 0;
-            bottom: 0;
             background: #000000;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            -webkit-overflow-scrolling: touch;
         }
         
         #app {
             position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            /* HACK: Make it taller to cover bottom safe area */
+            height: calc(100vh + 50px);
             background: #000000;
             overflow: hidden;
         }
@@ -49,8 +45,9 @@
             position: absolute;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            /* HACK: Video is taller and covers the bottom black bar */
+            height: calc(100vh + 50px);
             object-fit: cover;
             transition: none;
             will-change: transform;
@@ -59,7 +56,8 @@
         
         .controller {
             position: fixed;
-            bottom: calc(20px + env(safe-area-inset-bottom));
+            /* Keep controller in visible area */
+            bottom: calc(20px + env(safe-area-inset-bottom, 34px));
             left: 50%;
             transform: translateX(-50%);
             cursor: pointer;
