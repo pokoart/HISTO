@@ -109,14 +109,13 @@
         let isDragging = false;
         let dragStart = { x: 0, y: 0 };
         let wheelPosition = { x: 0, y: 0 };
-        let targetZoom = 1;
-        let currentZoom = 1;
+        let zoom = 1;
         let panX = 0;
         let panY = 0;
         let seekSpeed = 0;
         let animationFrame = null;
         let isPanMode = false;
-        let zoomAnimating = false;
+        let zoomInTransitionDone = false;
         
         function togglePlayPause() {
             if (video.paused) {
@@ -146,29 +145,9 @@
             return direction * curve * maxSpeed;
         }
         
-        function animateZoom() {
-            const easeSpeed = 0.1;
-            const diff = targetZoom - currentZoom;
-            
-            if (Math.abs(diff) > 0.005) {
-                currentZoom += diff * easeSpeed;
-                zoomAnimating = true;
-            } else {
-                currentZoom = targetZoom;
-                zoomAnimating = false;
-            }
-            
-            updateVideoTransform();
-            
-            if (isPanMode || zoomAnimating) {
-                requestAnimationFrame(animateZoom);
-            }
-        }
-        
         function updateVideoTransform() {
-            // Zoom from center of screen, then apply pan
-            video.style.transformOrigin = 'center center';
-            video.style.transform = `scale(${currentZoom}) translate(${panX / currentZoom}px, ${panY / currentZoom}px)`;
+            video.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+            video.style.transformOrigin = 'center calc(50% + 300px)';
         }
         
         function handleStart(e) {
@@ -184,6 +163,7 @@
             dragStart = { x: centerX, y: centerY };
             wheelPosition = { x: 0, y: 0 };
             isPanMode = false;
+            zoomInTransitionDone = false;
             
             controller.classList.add('dragging', 'pressed');
         }
@@ -219,8 +199,18 @@
                         animationFrame = null;
                     }
                     
-                    targetZoom = 1.8;
-                    animateZoom();
+                    // Start zoom IN with CSS transition (same as zoom OUT)
+                    video.style.transition = 'transform 0.3s ease-out';
+                    zoom = 1.8;
+                    panX = 0;
+                    panY = 0;
+                    updateVideoTransform();
+                    
+                    // After transition, disable it for smooth panning
+                    setTimeout(() => {
+                        video.style.transition = 'none';
+                        zoomInTransitionDone = true;
+                    }, 300);
                 }
                 
                 seekSpeed = 0;
@@ -229,55 +219,64 @@
                     animationFrame = null;
                 }
                 
-                const screenWidth = window.innerWidth;
-                const screenHeight = window.innerHeight;
-                const panSpeed = 3.5;
-                
-                const maxPanX = screenWidth * 0.35;
-                panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed));
-                
-                const maxPanUp = screenHeight * 0.7;
-                const maxPanDown = screenHeight * 0.15;
-                
-                const rawPanY = -deltaY * panSpeed;
-                
-                if (rawPanY > 0) {
-                    panY = Math.min(maxPanUp, rawPanY);
-                } else {
-                    panY = Math.max(-maxPanDown, rawPanY);
+                // Only allow panning after zoom transition is done
+                if (zoomInTransitionDone) {
+                    const screenWidth = window.innerWidth;
+                    const screenHeight = window.innerHeight;
+                    const panSpeed = 3.5;
+                    
+                    const maxPanX = screenWidth * 0.35;
+                    panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed));
+                    
+                    const maxPanUp = screenHeight * 0.7;
+                    const maxPanDown = screenHeight * 0.15;
+                    
+                    const rawPanY = -deltaY * panSpeed;
+                    
+                    if (rawPanY > 0) {
+                        panY = Math.min(maxPanUp, rawPanY);
+                    } else {
+                        panY = Math.max(-maxPanDown, rawPanY);
+                    }
+                    
+                    updateVideoTransform();
                 }
             }
             else if (isPanMode) {
+                zoom = 1.8;
                 seekSpeed = 0;
                 if (animationFrame !== null) {
                     cancelAnimationFrame(animationFrame);
                     animationFrame = null;
                 }
                 
-                const screenWidth = window.innerWidth;
-                const screenHeight = window.innerHeight;
-                const panSpeed = 3.5;
-                
-                const maxPanX = screenWidth * 0.35;
-                panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed));
-                
-                const maxPanUp = screenHeight * 0.7;
-                const maxPanDown = screenHeight * 0.15;
-                
-                const rawPanY = -deltaY * panSpeed;
-                
-                if (rawPanY > 0) {
-                    panY = Math.min(maxPanUp, rawPanY);
-                } else {
-                    panY = Math.max(-maxPanDown, rawPanY);
+                if (zoomInTransitionDone) {
+                    const screenWidth = window.innerWidth;
+                    const screenHeight = window.innerHeight;
+                    const panSpeed = 3.5;
+                    
+                    const maxPanX = screenWidth * 0.35;
+                    panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed));
+                    
+                    const maxPanUp = screenHeight * 0.7;
+                    const maxPanDown = screenHeight * 0.15;
+                    
+                    const rawPanY = -deltaY * panSpeed;
+                    
+                    if (rawPanY > 0) {
+                        panY = Math.min(maxPanUp, rawPanY);
+                    } else {
+                        panY = Math.max(-maxPanDown, rawPanY);
+                    }
+                    
+                    updateVideoTransform();
                 }
             }
             else if (Math.abs(deltaX) > 10) {
                 video.pause();
                 isPlaying = false;
                 
-                targetZoom = 1;
-                currentZoom = 1;
+                zoom = 1;
                 panX = 0;
                 panY = 0;
                 updateVideoTransform();
@@ -304,6 +303,7 @@
             isDragging = false;
             wheelPosition = { x: 0, y: 0 };
             seekSpeed = 0;
+            zoomInTransitionDone = false;
             
             if (animationFrame !== null) {
                 cancelAnimationFrame(animationFrame);
@@ -313,10 +313,10 @@
             controller.classList.remove('dragging', 'pressed');
             controller.style.transform = '';
             
+            // Zoom OUT with CSS transition
             video.style.transition = 'transform 0.3s ease-out';
             setTimeout(() => {
-                targetZoom = 1;
-                currentZoom = 1;
+                zoom = 1;
                 panX = 0;
                 panY = 0;
                 updateVideoTransform();
