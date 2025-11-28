@@ -108,6 +108,7 @@
         let isPlaying = false;
         let isDragging = false;
         let dragStart = { x: 0, y: 0 };
+        let panStart = { x: 0, y: 0 }; // Separate start point for panning
         let wheelPosition = { x: 0, y: 0 };
         let zoom = 1;
         let panX = 0;
@@ -116,6 +117,7 @@
         let animationFrame = null;
         let isPanMode = false;
         let zoomInTransitionDone = false;
+        let panStartSet = false;
         
         function togglePlayPause() {
             if (video.paused) {
@@ -164,6 +166,7 @@
             wheelPosition = { x: 0, y: 0 };
             isPanMode = false;
             zoomInTransitionDone = false;
+            panStartSet = false;
             
             controller.classList.add('dragging', 'pressed');
         }
@@ -199,14 +202,14 @@
                         animationFrame = null;
                     }
                     
-                    // Start zoom IN with CSS transition (same as zoom OUT)
+                    // Start zoom IN with CSS transition
                     video.style.transition = 'transform 0.3s ease-out';
                     zoom = 1.8;
                     panX = 0;
                     panY = 0;
                     updateVideoTransform();
                     
-                    // After transition, disable it for smooth panning
+                    // After transition, disable it and set pan start point
                     setTimeout(() => {
                         video.style.transition = 'none';
                         zoomInTransitionDone = true;
@@ -221,17 +224,27 @@
                 
                 // Only allow panning after zoom transition is done
                 if (zoomInTransitionDone) {
+                    // Set pan start point once when transition finishes
+                    if (!panStartSet) {
+                        panStart = { x: clientX, y: clientY };
+                        panStartSet = true;
+                    }
+                    
+                    // Calculate pan from the NEW start point
+                    const panDeltaX = clientX - panStart.x;
+                    const panDeltaY = clientY - panStart.y;
+                    
                     const screenWidth = window.innerWidth;
                     const screenHeight = window.innerHeight;
                     const panSpeed = 3.5;
                     
                     const maxPanX = screenWidth * 0.35;
-                    panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed));
+                    panX = -Math.max(-maxPanX, Math.min(maxPanX, panDeltaX * panSpeed));
                     
                     const maxPanUp = screenHeight * 0.7;
                     const maxPanDown = screenHeight * 0.15;
                     
-                    const rawPanY = -deltaY * panSpeed;
+                    const rawPanY = -panDeltaY * panSpeed;
                     
                     if (rawPanY > 0) {
                         panY = Math.min(maxPanUp, rawPanY);
@@ -251,17 +264,27 @@
                 }
                 
                 if (zoomInTransitionDone) {
+                    // Set pan start point once when transition finishes
+                    if (!panStartSet) {
+                        panStart = { x: clientX, y: clientY };
+                        panStartSet = true;
+                    }
+                    
+                    // Calculate pan from the NEW start point
+                    const panDeltaX = clientX - panStart.x;
+                    const panDeltaY = clientY - panStart.y;
+                    
                     const screenWidth = window.innerWidth;
                     const screenHeight = window.innerHeight;
                     const panSpeed = 3.5;
                     
                     const maxPanX = screenWidth * 0.35;
-                    panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed));
+                    panX = -Math.max(-maxPanX, Math.min(maxPanX, panDeltaX * panSpeed));
                     
                     const maxPanUp = screenHeight * 0.7;
                     const maxPanDown = screenHeight * 0.15;
                     
-                    const rawPanY = -deltaY * panSpeed;
+                    const rawPanY = -panDeltaY * panSpeed;
                     
                     if (rawPanY > 0) {
                         panY = Math.min(maxPanUp, rawPanY);
@@ -304,6 +327,7 @@
             wheelPosition = { x: 0, y: 0 };
             seekSpeed = 0;
             zoomInTransitionDone = false;
+            panStartSet = false;
             
             if (animationFrame !== null) {
                 cancelAnimationFrame(animationFrame);
