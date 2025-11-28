@@ -110,7 +110,7 @@
         let dragStart = { x: 0, y: 0 };
         let wheelPosition = { x: 0, y: 0 };
         let targetZoom = 1;
-        let currentZoom = 1; // Animated zoom value
+        let currentZoom = 1;
         let panX = 0;
         let panY = 0;
         let seekSpeed = 0;
@@ -146,7 +146,6 @@
             return direction * curve * maxSpeed;
         }
         
-        // Continuous animation loop for zoom
         function animateZoom() {
             const easeSpeed = 0.1;
             const diff = targetZoom - currentZoom;
@@ -159,18 +158,17 @@
                 zoomAnimating = false;
             }
             
-            video.style.transform = `translate(${panX}px, ${panY}px) scale(${currentZoom})`;
-            video.style.transformOrigin = 'center calc(50% + 300px)';
+            updateVideoTransform();
             
-            // Keep animating while in pan mode or while zoom is settling
             if (isPanMode || zoomAnimating) {
                 requestAnimationFrame(animateZoom);
             }
         }
         
         function updateVideoTransform() {
-            video.style.transform = `translate(${panX}px, ${panY}px) scale(${currentZoom})`;
-            video.style.transformOrigin = 'center calc(50% + 300px)';
+            // Zoom from center of screen, then apply pan
+            video.style.transformOrigin = 'center center';
+            video.style.transform = `scale(${currentZoom}) translate(${panX / currentZoom}px, ${panY / currentZoom}px)`;
         }
         
         function handleStart(e) {
@@ -221,7 +219,6 @@
                         animationFrame = null;
                     }
                     
-                    // Set target zoom and start animation loop
                     targetZoom = 1.8;
                     animateZoom();
                 }
@@ -249,8 +246,6 @@
                 } else {
                     panY = Math.max(-maxPanDown, rawPanY);
                 }
-                
-                // Pan is updated in animateZoom loop
             }
             else if (isPanMode) {
                 seekSpeed = 0;
@@ -276,8 +271,6 @@
                 } else {
                     panY = Math.max(-maxPanDown, rawPanY);
                 }
-                
-                // Pan is updated in animateZoom loop
             }
             else if (Math.abs(deltaX) > 10) {
                 video.pause();
@@ -320,7 +313,6 @@
             controller.classList.remove('dragging', 'pressed');
             controller.style.transform = '';
             
-            // Reset zoom and pan with CSS transition
             video.style.transition = 'transform 0.3s ease-out';
             setTimeout(() => {
                 targetZoom = 1;
