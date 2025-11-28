@@ -109,14 +109,14 @@
         let isDragging = false;
         let dragStart = { x: 0, y: 0 };
         let wheelPosition = { x: 0, y: 0 };
-        let zoom = 1;
-        let displayZoom = 1; // Visual zoom (animated)
+        let targetZoom = 1;
+        let currentZoom = 1; // Animated zoom value
         let panX = 0;
         let panY = 0;
         let seekSpeed = 0;
         let animationFrame = null;
         let isPanMode = false;
-        let zoomAnimationFrame = null;
+        let zoomAnimating = false;
         
         function togglePlayPause() {
             if (video.paused) {
@@ -146,24 +146,30 @@
             return direction * curve * maxSpeed;
         }
         
-        // Animate zoom IN with easing
-        function animateZoomIn() {
-            const targetZoom = 1.8;
-            const easeSpeed = 0.12; // Adjust for faster/slower animation
+        // Continuous animation loop for zoom
+        function animateZoom() {
+            const easeSpeed = 0.1;
+            const diff = targetZoom - currentZoom;
             
-            if (displayZoom < targetZoom - 0.01) {
-                displayZoom += (targetZoom - displayZoom) * easeSpeed;
-                updateVideoTransform();
-                zoomAnimationFrame = requestAnimationFrame(animateZoomIn);
+            if (Math.abs(diff) > 0.005) {
+                currentZoom += diff * easeSpeed;
+                zoomAnimating = true;
             } else {
-                displayZoom = targetZoom;
-                updateVideoTransform();
-                zoomAnimationFrame = null;
+                currentZoom = targetZoom;
+                zoomAnimating = false;
+            }
+            
+            video.style.transform = `translate(${panX}px, ${panY}px) scale(${currentZoom})`;
+            video.style.transformOrigin = 'center calc(50% + 300px)';
+            
+            // Keep animating while in pan mode or while zoom is settling
+            if (isPanMode || zoomAnimating) {
+                requestAnimationFrame(animateZoom);
             }
         }
         
         function updateVideoTransform() {
-            video.style.transform = `translate(${panX}px, ${panY}px) scale(${displayZoom})`;
+            video.style.transform = `translate(${panX}px, ${panY}px) scale(${currentZoom})`;
             video.style.transformOrigin = 'center calc(50% + 300px)';
         }
         
@@ -215,13 +221,11 @@
                         animationFrame = null;
                     }
                     
-                    // Start zoom IN animation
-                    if (zoomAnimationFrame === null) {
-                        animateZoomIn();
-                    }
+                    // Set target zoom and start animation loop
+                    targetZoom = 1.8;
+                    animateZoom();
                 }
                 
-                zoom = 1.8;
                 seekSpeed = 0;
                 if (animationFrame !== null) {
                     cancelAnimationFrame(animationFrame);
@@ -246,10 +250,9 @@
                     panY = Math.max(-maxPanDown, rawPanY);
                 }
                 
-                updateVideoTransform();
+                // Pan is updated in animateZoom loop
             }
             else if (isPanMode) {
-                zoom = 1.8;
                 seekSpeed = 0;
                 if (animationFrame !== null) {
                     cancelAnimationFrame(animationFrame);
@@ -274,14 +277,14 @@
                     panY = Math.max(-maxPanDown, rawPanY);
                 }
                 
-                updateVideoTransform();
+                // Pan is updated in animateZoom loop
             }
             else if (Math.abs(deltaX) > 10) {
                 video.pause();
                 isPlaying = false;
                 
-                zoom = 1;
-                displayZoom = 1;
+                targetZoom = 1;
+                currentZoom = 1;
                 panX = 0;
                 panY = 0;
                 updateVideoTransform();
@@ -314,20 +317,14 @@
                 animationFrame = null;
             }
             
-            // Stop zoom animation if running
-            if (zoomAnimationFrame !== null) {
-                cancelAnimationFrame(zoomAnimationFrame);
-                zoomAnimationFrame = null;
-            }
-            
             controller.classList.remove('dragging', 'pressed');
             controller.style.transform = '';
             
-            // Reset zoom and pan with CSS transition (existing behavior)
+            // Reset zoom and pan with CSS transition
             video.style.transition = 'transform 0.3s ease-out';
             setTimeout(() => {
-                zoom = 1;
-                displayZoom = 1;
+                targetZoom = 1;
+                currentZoom = 1;
                 panX = 0;
                 panY = 0;
                 updateVideoTransform();
