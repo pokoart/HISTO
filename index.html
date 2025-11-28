@@ -69,10 +69,6 @@
         .controller.dragging {
             transition: transform 0.1s ease-out;
         }
-        
-        .controller.pressed {
-            transform: translateX(-50%) scale(0.92);
-        }
     </style>
 </head>
 <body>
@@ -168,7 +164,7 @@
             zoomInTransitionDone = false;
             panStartSet = false;
             
-            controller.classList.add('dragging', 'pressed');
+            controller.classList.add('dragging');
         }
         
         function handleMove(e) {
@@ -186,11 +182,9 @@
             const inZoomZone = deltaY < -50 && Math.abs(deltaY) > Math.abs(deltaX) * 2;
             
             if (inZoomZone || isPanMode) {
-                // Zoom/Pan mode - NO scale, only rotation
                 controller.style.transform = `translateX(-50%) translate(${deltaX}px, ${deltaY}px) rotate(-90deg)`;
             } else {
-                // Seek mode - WITH scale
-                controller.style.transform = `translateX(-50%) translate(${deltaX}px, ${deltaY}px) scale(0.92)`;
+                controller.style.transform = `translateX(-50%) translate(${deltaX}px, ${deltaY}px)`;
             }
             
             if (inZoomZone) {
@@ -238,8 +232,8 @@
                     const maxPanX = screenWidth * 0.35;
                     panX = -Math.max(-maxPanX, Math.min(maxPanX, panDeltaX * panSpeed));
                     
-                    const maxPanUp = screenHeight * 0.5;
-                    const maxPanDown = screenHeight * 0.25;
+                    const maxPanUp = screenHeight * 0.6;
+                    const maxPanDown = screenHeight * 0.2;
                     
                     const rawPanY = -panDeltaY * panSpeed;
                     
@@ -276,8 +270,8 @@
                     const maxPanX = screenWidth * 0.35;
                     panX = -Math.max(-maxPanX, Math.min(maxPanX, panDeltaX * panSpeed));
                     
-                    const maxPanUp = screenHeight * 0.5;
-                    const maxPanDown = screenHeight * 0.25;
+                    const maxPanUp = screenHeight * 0.6;
+                    const maxPanDown = screenHeight * 0.2;
                     
                     const rawPanY = -panDeltaY * panSpeed;
                     
@@ -329,7 +323,7 @@
                 animationFrame = null;
             }
             
-            controller.classList.remove('dragging', 'pressed');
+            controller.classList.remove('dragging');
             controller.style.transform = '';
             
             video.style.transition = 'transform 0.3s ease-out';
