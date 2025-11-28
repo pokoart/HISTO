@@ -149,7 +149,7 @@
         
         function updateVideoTransform() {
             video.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
-            video.style.transformOrigin = 'center calc(50% + 300px)';
+            video.style.transformOrigin = 'center calc(50% + 200px)';
         }
         
         function handleStart(e) {
@@ -186,9 +186,9 @@
             const inZoomZone = deltaY < -50 && Math.abs(deltaY) > Math.abs(deltaX) * 2;
             
             if (inZoomZone || isPanMode) {
-                controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92) rotate(-90deg)`;
+                controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) rotate(-90deg)`;
             } else {
-                controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92)`;
+                controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px)`;
             }
             
             if (inZoomZone) {
