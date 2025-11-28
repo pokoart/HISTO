@@ -3,9 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <!-- PWA / Fullscreen meta tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-title" content="Player">
+    <!-- Link to manifest -->
+    <link rel="manifest" href="./manifest.json">
+    <link rel="apple-touch-icon" href="./controller.png">
     <title>Video Player</title>
     <style>
         * {
@@ -15,39 +21,27 @@
             -webkit-tap-highlight-color: transparent;
         }
         
-        html {
+        html, body {
             width: 100%;
             height: 100%;
             overflow: hidden;
             position: fixed;
-            background: black;
-        }
-        
-        body {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            position: fixed;
-            background: black;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            /* KEY: Use env() for safe areas */
-            padding: 0 !important;
-            margin: 0 !important;
-        }
-        
-        #app {
-            position: fixed;
-            /* Cover entire screen including safe areas */
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            /* Extend into safe areas */
-            width: 100vw;
-            height: 100vh;
-            /* Also use dvh for dynamic viewport height on iOS */
-            height: 100dvh;
-            background: black;
+            background: #000000;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        #app {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000000;
             overflow: hidden;
         }
         
@@ -55,17 +49,16 @@
             position: absolute;
             top: 0;
             left: 0;
-            width: 100vw;
-            height: 100vh;
-            height: 100dvh;
+            width: 100%;
+            height: 100%;
             object-fit: cover;
             transition: none;
             will-change: transform;
+            background: #000000;
         }
         
         .controller {
             position: fixed;
-            /* Position from bottom using safe area */
             bottom: calc(20px + env(safe-area-inset-bottom));
             left: 50%;
             transform: translateX(-50%);
@@ -85,20 +78,11 @@
         .controller.pressed {
             transform: translateX(-50%) scale(0.92);
         }
-        
-        /* Ensure full bleed on iOS PWA */
-        @supports (padding-top: env(safe-area-inset-top)) {
-            #app {
-                /* Extend beyond safe areas */
-                padding-top: 0 !important;
-                padding-bottom: 0 !important;
-            }
-        }
     </style>
 </head>
 <body>
     <div id="app">
-        <video id="video" playsinline>
+        <video id="video" playsinline webkit-playsinline>
             <source src="./video.mp4" type="video/mp4">
         </video>
         
@@ -114,7 +98,6 @@
         const video = document.getElementById('video');
         const controller = document.getElementById('controller');
         
-        // Show first frame on load - multiple attempts
         video.addEventListener('loadeddata', function() {
             video.currentTime = 0.001;
         });
@@ -125,7 +108,6 @@
             }
         });
         
-        // Force load
         video.load();
         
         let isPlaying = false;
@@ -139,7 +121,6 @@
         let animationFrame = null;
         let isPanMode = false;
         
-        // Toggle play/pause
         function togglePlayPause() {
             if (video.paused) {
                 video.play();
@@ -150,7 +131,6 @@
             }
         }
         
-        // Seek animation with smooth acceleration (0% to 75%)
         function seekVideo() {
             if (seekSpeed !== 0) {
                 const newTime = Math.max(0, Math.min(video.duration, video.currentTime + seekSpeed));
@@ -159,27 +139,21 @@
             }
         }
         
-        // Calculate speed with gentle curve from 0% to 75%
         function calculateSeekSpeed(deltaX) {
             const maxDelta = 250;
             const normalizedDelta = Math.max(-maxDelta, Math.min(maxDelta, deltaX));
-            const ratio = Math.abs(normalizedDelta) / maxDelta; // 0 to 1
-            
-            // Gentle acceleration curve
+            const ratio = Math.abs(normalizedDelta) / maxDelta;
             const curve = Math.pow(ratio, 2.5);
-            const maxSpeed = 0.75; // 75% = 0.75 seconds per frame at max
+            const maxSpeed = 0.75;
             const direction = normalizedDelta > 0 ? 1 : -1;
-            
             return direction * curve * maxSpeed;
         }
         
-        // Update video transform
         function updateVideoTransform() {
             video.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
-            video.style.transformOrigin = 'center calc(50% + 300px)'; // Anchor point 300px lower
+            video.style.transformOrigin = 'center calc(50% + 300px)';
         }
         
-        // Mouse/Touch start
         function handleStart(e) {
             e.preventDefault();
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -197,7 +171,6 @@
             controller.classList.add('dragging', 'pressed');
         }
         
-        // Mouse/Touch move
         function handleMove(e) {
             if (!isDragging) return;
             e.preventDefault();
@@ -210,10 +183,8 @@
             
             wheelPosition = { x: deltaX, y: deltaY };
             
-            // Check if in ZOOM ZONE (moving UP with strong vertical dominance) - MUST BE FIRST!
             const inZoomZone = deltaY < -50 && Math.abs(deltaY) > Math.abs(deltaX) * 2;
             
-            // Update controller position with rotation in zoom/pan mode
             if (inZoomZone || isPanMode) {
                 controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) scale(0.92) rotate(-90deg)`;
             } else {
@@ -221,13 +192,10 @@
             }
             
             if (inZoomZone) {
-                // INSTANTLY enter PAN MODE with 180% zoom
                 if (!isPanMode) {
                     isPanMode = true;
                     video.pause();
                     isPlaying = false;
-                    
-                    // CRITICAL: Stop any seek animation immediately
                     seekSpeed = 0;
                     if (animationFrame !== null) {
                         cancelAnimationFrame(animationFrame);
@@ -235,48 +203,7 @@
                     }
                 }
                 
-                // ZOOM INSTANTLY LOCKED AT 180%
                 zoom = 1.8;
-                
-                // CRITICAL: Ensure video is frozen
-                seekSpeed = 0;
-                if (animationFrame !== null) {
-                    cancelAnimationFrame(animationFrame);
-                    animationFrame = null;
-                }
-                
-                // ALL directions work as pan with ASYMMETRIC RANGE
-                const screenWidth = window.innerWidth;
-                const screenHeight = window.innerHeight;
-                const panSpeed = 3.5;
-                
-                // Horizontal pan (symmetric)
-                const maxPanX = screenWidth * 0.35; // 35% horizontal
-                panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed));
-                
-                // Vertical pan (ASYMMETRIC - more UP, less DOWN)
-                const maxPanUp = screenHeight * 0.7;   // 70% upward (to reach top)
-                const maxPanDown = screenHeight * 0.15; // 15% downward (prevent bottom overshoot)
-                
-                const rawPanY = -deltaY * panSpeed; // INVERTED
-                
-                // Apply asymmetric limits
-                if (rawPanY > 0) {
-                    // Panning UP (positive rawPanY)
-                    panY = Math.min(maxPanUp, rawPanY);
-                } else {
-                    // Panning DOWN (negative rawPanY)
-                    panY = Math.max(-maxPanDown, rawPanY);
-                }
-                
-                updateVideoTransform();
-            }
-            // If already in PAN MODE - stay in it regardless of direction
-            else if (isPanMode) {
-                // PAN MODE CONTINUES - zoom LOCKED at 180%
-                zoom = 1.8;
-                
-                // CRITICAL: Keep video frozen
                 seekSpeed = 0;
                 if (animationFrame !== null) {
                     cancelAnimationFrame(animationFrame);
@@ -287,13 +214,11 @@
                 const screenHeight = window.innerHeight;
                 const panSpeed = 3.5;
                 
-                // Horizontal pan (symmetric)
                 const maxPanX = screenWidth * 0.35;
                 panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed));
                 
-                // Vertical pan (ASYMMETRIC - more UP, less DOWN)
-                const maxPanUp = screenHeight * 0.7;   // 70% upward
-                const maxPanDown = screenHeight * 0.15; // 15% downward
+                const maxPanUp = screenHeight * 0.7;
+                const maxPanDown = screenHeight * 0.15;
                 
                 const rawPanY = -deltaY * panSpeed;
                 
@@ -305,9 +230,35 @@
                 
                 updateVideoTransform();
             }
-            // Horizontal movement - SEEK MODE
+            else if (isPanMode) {
+                zoom = 1.8;
+                seekSpeed = 0;
+                if (animationFrame !== null) {
+                    cancelAnimationFrame(animationFrame);
+                    animationFrame = null;
+                }
+                
+                const screenWidth = window.innerWidth;
+                const screenHeight = window.innerHeight;
+                const panSpeed = 3.5;
+                
+                const maxPanX = screenWidth * 0.35;
+                panX = -Math.max(-maxPanX, Math.min(maxPanX, deltaX * panSpeed));
+                
+                const maxPanUp = screenHeight * 0.7;
+                const maxPanDown = screenHeight * 0.15;
+                
+                const rawPanY = -deltaY * panSpeed;
+                
+                if (rawPanY > 0) {
+                    panY = Math.min(maxPanUp, rawPanY);
+                } else {
+                    panY = Math.max(-maxPanDown, rawPanY);
+                }
+                
+                updateVideoTransform();
+            }
             else if (Math.abs(deltaX) > 10) {
-                // CRITICAL: ALWAYS pause video during seek (forward or backward)
                 video.pause();
                 isPlaying = false;
                 
@@ -324,14 +275,12 @@
             }
         }
         
-        // Mouse/Touch end
         function handleEnd(e) {
             if (!isDragging) return;
             
             const deltaX = wheelPosition.x;
             const deltaY = wheelPosition.y;
             
-            // Click (no movement) - play/pause
             if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
                 togglePlayPause();
             }
@@ -347,9 +296,8 @@
             }
             
             controller.classList.remove('dragging', 'pressed');
-            controller.style.transform = ''; // Reset includes removing rotation
+            controller.style.transform = '';
             
-            // Reset zoom and pan when releasing
             video.style.transition = 'transform 0.3s ease';
             setTimeout(() => {
                 zoom = 1;
@@ -363,7 +311,6 @@
             }, 10);
         }
         
-        // Event listeners
         controller.addEventListener('mousedown', handleStart);
         controller.addEventListener('touchstart', handleStart, { passive: false });
         
