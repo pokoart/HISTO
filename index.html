@@ -54,7 +54,7 @@
         
         .controller {
             position: fixed;
-            bottom: 25px;
+            bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             cursor: pointer;
@@ -186,9 +186,11 @@
             const inZoomZone = deltaY < -50 && Math.abs(deltaY) > Math.abs(deltaX) * 2;
             
             if (inZoomZone || isPanMode) {
-                controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px) rotate(-90deg)`;
+                // Zoom/Pan mode - NO scale, only rotation
+                controller.style.transform = `translateX(-50%) translate(${deltaX}px, ${deltaY}px) rotate(-90deg)`;
             } else {
-                controller.style.transform = `translate(calc(-50% + ${deltaX}px), ${deltaY}px)`;
+                // Seek mode - WITH scale
+                controller.style.transform = `translateX(-50%) translate(${deltaX}px, ${deltaY}px) scale(0.92)`;
             }
             
             if (inZoomZone) {
@@ -236,8 +238,8 @@
                     const maxPanX = screenWidth * 0.35;
                     panX = -Math.max(-maxPanX, Math.min(maxPanX, panDeltaX * panSpeed));
                     
-                    const maxPanUp = screenHeight * 0.7;
-                    const maxPanDown = screenHeight * 0.15;
+                    const maxPanUp = screenHeight * 0.5;
+                    const maxPanDown = screenHeight * 0.25;
                     
                     const rawPanY = -panDeltaY * panSpeed;
                     
@@ -274,8 +276,8 @@
                     const maxPanX = screenWidth * 0.35;
                     panX = -Math.max(-maxPanX, Math.min(maxPanX, panDeltaX * panSpeed));
                     
-                    const maxPanUp = screenHeight * 0.7;
-                    const maxPanDown = screenHeight * 0.15;
+                    const maxPanUp = screenHeight * 0.5;
+                    const maxPanDown = screenHeight * 0.25;
                     
                     const rawPanY = -panDeltaY * panSpeed;
                     
