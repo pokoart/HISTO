@@ -67,7 +67,7 @@
         }
         
         .controller.dragging {
-            transition: transform 0.1s ease-out;
+            transition: transform 0.15s ease-out;
         }
     </style>
 </head>
@@ -114,6 +114,9 @@
         let isPanMode = false;
         let zoomInTransitionDone = false;
         let panStartSet = false;
+        let currentRotation = 0;
+        let targetRotation = 0;
+        let rotationAnimFrame = null;
         
         function togglePlayPause() {
             if (video.paused) {
@@ -148,6 +151,27 @@
             video.style.transformOrigin = 'center calc(50% + 200px)';
         }
         
+        function animateRotation() {
+            const diff = targetRotation - currentRotation;
+            const easeSpeed = 0.15;
+            
+            if (Math.abs(diff) > 0.5) {
+                currentRotation += diff * easeSpeed;
+                rotationAnimFrame = requestAnimationFrame(animateRotation);
+            } else {
+                currentRotation = targetRotation;
+                rotationAnimFrame = null;
+            }
+            
+            updateControllerTransform();
+        }
+        
+        function updateControllerTransform() {
+            const deltaX = wheelPosition.x;
+            const deltaY = wheelPosition.y;
+            controller.style.transform = `translateX(-50%) translate(${deltaX}px, ${deltaY}px) rotate(${currentRotation}deg)`;
+        }
+        
         function handleStart(e) {
             e.preventDefault();
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -158,11 +182,13 @@
             const centerY = rect.top + rect.height / 2;
             
             isDragging = true;
-            dragStart = { x: centerX, y: centerY };
+            dragStart = { x: clientX, y: clientY };
             wheelPosition = { x: 0, y: 0 };
             isPanMode = false;
             zoomInTransitionDone = false;
             panStartSet = false;
+            currentRotation = 0;
+            targetRotation = 0;
             
             controller.classList.add('dragging');
         }
@@ -181,11 +207,20 @@
             
             const inZoomZone = deltaY < -50 && Math.abs(deltaY) > Math.abs(deltaX) * 2;
             
+            // Set target rotation based on mode
             if (inZoomZone || isPanMode) {
-                controller.style.transform = `translateX(-50%) translate(${deltaX}px, ${deltaY}px) rotate(-90deg)`;
+                targetRotation = -90;
             } else {
-                controller.style.transform = `translateX(-50%) translate(${deltaX}px, ${deltaY}px)`;
+                targetRotation = 0;
             }
+            
+            // Start rotation animation if not running
+            if (rotationAnimFrame === null && currentRotation !== targetRotation) {
+                animateRotation();
+            }
+            
+            // Update position immediately (rotation is animated)
+            updateControllerTransform();
             
             if (inZoomZone) {
                 if (!isPanMode) {
@@ -322,6 +357,14 @@
                 cancelAnimationFrame(animationFrame);
                 animationFrame = null;
             }
+            
+            if (rotationAnimFrame !== null) {
+                cancelAnimationFrame(rotationAnimFrame);
+                rotationAnimFrame = null;
+            }
+            
+            currentRotation = 0;
+            targetRotation = 0;
             
             controller.classList.remove('dragging');
             controller.style.transform = '';
