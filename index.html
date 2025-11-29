@@ -54,7 +54,7 @@
         
         .controller {
             position: fixed;
-            bottom: 20px;
+            bottom: 12px;
             left: 50%;
             transform: translateX(-50%);
             cursor: pointer;
@@ -67,17 +67,7 @@
         }
         
         .controller.dragging {
-            transition: none;
-        }
-        
-        .controller-rotation {
-            width: 100%;
-            height: 100%;
-            transition: transform 0.25s ease-out;
-        }
-        
-        .controller-rotation.rotated {
-            transform: rotate(-90deg);
+            transition: transform 0.1s ease-out;
         }
     </style>
 </head>
@@ -87,20 +77,17 @@
             <source src="./video.mp4" type="video/mp4">
         </video>
         
-        <div class="controller" id="controller">
-            <img 
-                class="controller-rotation"
-                id="controllerImg"
-                src="./controller.png" 
-                alt="Controller"
-            />
-        </div>
+        <img 
+            class="controller" 
+            id="controller" 
+            src="./controller.png" 
+            alt="Controller"
+        />
     </div>
 
     <script>
         const video = document.getElementById('video');
         const controller = document.getElementById('controller');
-        const controllerImg = document.getElementById('controllerImg');
         
         video.addEventListener('loadeddata', function() {
             video.currentTime = 0.001;
@@ -127,6 +114,7 @@
         let isPanMode = false;
         let zoomInTransitionDone = false;
         let panStartSet = false;
+        let currentRotation = 0;
         
         function togglePlayPause() {
             if (video.paused) {
@@ -194,15 +182,11 @@
             
             const inZoomZone = deltaY < -50 && Math.abs(deltaY) > Math.abs(deltaX) * 2;
             
-            // Update controller position (immediate)
-            controller.style.transform = `translateX(-50%) translate(${deltaX}px, ${deltaY}px)`;
+            // Smooth rotation easing
+            const targetRotation = (inZoomZone || isPanMode) ? -90 : 0;
+            currentRotation += (targetRotation - currentRotation) * 0.15;
             
-            // Update rotation with CSS transition (smooth)
-            if (inZoomZone || isPanMode) {
-                controllerImg.classList.add('rotated');
-            } else {
-                controllerImg.classList.remove('rotated');
-            }
+            controller.style.transform = `translateX(-50%) translate(${deltaX}px, ${deltaY}px) rotate(${currentRotation}deg)`;
             
             if (inZoomZone) {
                 if (!isPanMode) {
@@ -334,6 +318,7 @@
             seekSpeed = 0;
             zoomInTransitionDone = false;
             panStartSet = false;
+            currentRotation = 0;
             
             if (animationFrame !== null) {
                 cancelAnimationFrame(animationFrame);
@@ -342,7 +327,6 @@
             
             controller.classList.remove('dragging');
             controller.style.transform = '';
-            controllerImg.classList.remove('rotated');
             
             video.style.transition = 'transform 0.3s ease-out';
             setTimeout(() => {
