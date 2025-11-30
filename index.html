@@ -54,7 +54,7 @@
         
         .controller {
             position: fixed;
-            bottom: 12px;
+            bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             cursor: pointer;
@@ -74,7 +74,7 @@
 <body>
     <div id="app">
         <video id="video" playsinline webkit-playsinline>
-            <source src="./video.mp4" type="video/mp4">
+            <source id="videoSource" src="./video.mp4" type="video/mp4">
         </video>
         
         <img 
@@ -87,7 +87,12 @@
 
     <script>
         const video = document.getElementById('video');
+        const videoSource = document.getElementById('videoSource');
         const controller = document.getElementById('controller');
+        
+        // Video switching
+        let currentVideo = 1; // 1 = video.mp4, 2 = video2.mp4
+        const videoFiles = ['./video.mp4', './video2.mp4'];
         
         video.addEventListener('loadeddata', function() {
             video.currentTime = 0.001;
@@ -124,6 +129,26 @@
                 video.pause();
                 isPlaying = false;
             }
+        }
+        
+        function switchVideo() {
+            // Save current time
+            const currentTime = video.currentTime;
+            const wasPlaying = !video.paused;
+            
+            // Switch video
+            currentVideo = currentVideo === 1 ? 2 : 1;
+            videoSource.src = videoFiles[currentVideo - 1];
+            
+            // Reload and restore position
+            video.load();
+            video.addEventListener('loadeddata', function onLoaded() {
+                video.currentTime = currentTime;
+                if (wasPlaying) {
+                    video.play();
+                }
+                video.removeEventListener('loadeddata', onLoaded);
+            });
         }
         
         function seekVideo() {
@@ -308,7 +333,14 @@
             const deltaX = wheelPosition.x;
             const deltaY = wheelPosition.y;
             
-            if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
+            // Detect swipe down for video switch
+            const isSwipeDown = deltaY > 50 && Math.abs(deltaX) < 30;
+            
+            if (isSwipeDown) {
+                // Switch video
+                switchVideo();
+            } else if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
+                // Tap - play/pause
                 togglePlayPause();
             }
             
