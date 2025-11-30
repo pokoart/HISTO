@@ -47,13 +47,13 @@
             width: 100vw;
             height: calc(100vh + 50px);
             object-fit: cover;
-            transition: none;
-            will-change: transform;
+            will-change: transform, opacity;
             background: #000000;
+            transition: opacity 0.25s ease-out;
         }
         
         .video.hidden {
-            visibility: hidden;
+            opacity: 0;
         }
         
         .controller {
@@ -164,9 +164,9 @@
             // Sync time before switch
             newActive.currentTime = oldActive.currentTime;
             
-            // Switch visibility
-            oldActive.classList.add('hidden');
+            // Crossfade - remove hidden from new, add to old
             newActive.classList.remove('hidden');
+            oldActive.classList.add('hidden');
             
             // Transfer playback state
             if (isPlaying) {
@@ -261,16 +261,16 @@
                         animationFrame = null;
                     }
                     
-                    video1.style.transition = 'transform 0.3s ease-out';
-                    video2.style.transition = 'transform 0.3s ease-out';
+                    video1.style.transition = 'opacity 0.25s ease-out, transform 0.3s ease-out';
+                    video2.style.transition = 'opacity 0.25s ease-out, transform 0.3s ease-out';
                     zoom = 1.8;
                     panX = 0;
                     panY = 0;
                     updateVideoTransform();
                     
                     setTimeout(() => {
-                        video1.style.transition = 'none';
-                        video2.style.transition = 'none';
+                        video1.style.transition = 'opacity 0.25s ease-out';
+                        video2.style.transition = 'opacity 0.25s ease-out';
                         zoomInTransitionDone = true;
                     }, 300);
                 }
@@ -400,8 +400,8 @@
             controller.classList.remove('dragging');
             controller.style.transform = '';
             
-            video1.style.transition = 'transform 0.3s ease-out';
-            video2.style.transition = 'transform 0.3s ease-out';
+            video1.style.transition = 'opacity 0.25s ease-out, transform 0.3s ease-out';
+            video2.style.transition = 'opacity 0.25s ease-out, transform 0.3s ease-out';
             setTimeout(() => {
                 zoom = 1;
                 panX = 0;
@@ -409,8 +409,8 @@
                 updateVideoTransform();
                 
                 setTimeout(() => {
-                    video1.style.transition = 'none';
-                    video2.style.transition = 'none';
+                    video1.style.transition = 'opacity 0.25s ease-out';
+                    video2.style.transition = 'opacity 0.25s ease-out';
                 }, 300);
             }, 10);
         }
