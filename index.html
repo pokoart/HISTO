@@ -2,7 +2,7 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Video Player</title>
@@ -14,30 +14,40 @@
             -webkit-tap-highlight-color: transparent;
         }
         
-        html, body {
+        html {
+            height: 100%;
+        }
+        
+        body {
+            height: 100%;
             overflow: hidden;
             background: black;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            /* Extend into safe areas */
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
         }
         
         #app {
             position: fixed;
-            top: -50px;
+            top: 0;
             left: 0;
-            width: 100vw;
+            right: 0;
+            bottom: 0;
             background: black;
             overflow: hidden;
         }
         
         .video {
             position: absolute;
-            top: -50px;
+            top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             object-fit: cover;
             will-change: transform, opacity;
             background: black;
+            /* Extend video into safe areas */
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
         }
         
         #video1 {
@@ -71,6 +81,14 @@
         .controller.dragging {
             transition: transform 0.1s ease-out;
         }
+        
+        /* Force fullscreen coverage */
+        @supports (padding: env(safe-area-inset-top)) {
+            #app {
+                top: calc(-1 * env(safe-area-inset-top));
+                height: calc(100% + env(safe-area-inset-top) + env(safe-area-inset-bottom));
+            }
+        }
     </style>
 </head>
 <body>
@@ -91,18 +109,9 @@
     </div>
 
     <script>
-        const app = document.getElementById('app');
         const video1 = document.getElementById('video1');
         const video2 = document.getElementById('video2');
         const controller = document.getElementById('controller');
-        
-        // Set actual viewport height (fixes iOS safari issues)
-        function setAppHeight() {
-            const vh = window.innerHeight;
-            app.style.height = (vh + 100) + 'px';
-        }
-        setAppHeight();
-        window.addEventListener('resize', setAppHeight);
         
         let activeVideo = 1;
         
