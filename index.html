@@ -2,53 +2,42 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#000000">
-    <meta name="apple-mobile-web-app-title" content="Player">
-    <link rel="manifest" href="./manifest.json">
-    <link rel="apple-touch-icon" href="./controller.png">
     <title>Video Player</title>
     <style>
         * {
-            margin: 0 !important;
-            padding: 0 !important;
+            margin: 0;
+            padding: 0;
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
         }
         
-        html, body {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            position: fixed;
-            top: 0;
-            left: 0;
-            background: #000000;
+        body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            overflow: hidden;
+            background: black;
         }
         
         #app {
-            position: fixed;
-            top: 0;
-            left: 0;
+            position: relative;
             width: 100vw;
-            height: calc(100vh + 50px);
-            background: #000000;
+            height: 100vh;
+            background: black;
             overflow: hidden;
         }
         
         .video {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: calc(100vh + 50px);
+            top: 50%;
+            left: 50%;
+            width: 100%;
+            height: 100%;
             object-fit: cover;
+            transform: translate(-50%, -50%);
             will-change: transform, opacity;
-            background: #000000;
+            background: black;
         }
         
         #video1 {
@@ -66,7 +55,7 @@
         }
         
         .controller {
-            position: fixed;
+            position: absolute;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
@@ -106,7 +95,6 @@
         const video2 = document.getElementById('video2');
         const controller = document.getElementById('controller');
         
-        // Current active video (1 or 2)
         let activeVideo = 1;
         
         function getActiveVideo() {
@@ -117,14 +105,12 @@
             return activeVideo === 1 ? video2 : video1;
         }
         
-        // Sync videos - keep them at same time
         function syncVideos() {
             const active = getActiveVideo();
             const inactive = getInactiveVideo();
             inactive.currentTime = active.currentTime;
         }
         
-        // Initialize both videos
         function initVideos() {
             video1.load();
             video2.load();
@@ -170,28 +156,20 @@
             const oldActive = getActiveVideo();
             const newActive = getInactiveVideo();
             
-            // Sync time before switch
             newActive.currentTime = oldActive.currentTime;
             
-            // Toggle video2 visibility (video2 is always on top)
             if (activeVideo === 1) {
-                // Switching to video2 - fade in video2
                 video2.classList.add('visible');
             } else {
-                // Switching to video1 - fade out video2
                 video2.classList.remove('visible');
             }
             
-            // Transfer playback state
             if (isPlaying) {
                 oldActive.pause();
                 newActive.play();
             }
             
-            // Update active
             activeVideo = activeVideo === 1 ? 2 : 1;
-            
-            // Apply current transform to new video
             updateVideoTransform();
         }
         
@@ -201,7 +179,7 @@
                 const inactive = getInactiveVideo();
                 const newTime = Math.max(0, Math.min(active.duration, active.currentTime + seekSpeed));
                 active.currentTime = newTime;
-                inactive.currentTime = newTime; // Keep synced
+                inactive.currentTime = newTime;
                 animationFrame = requestAnimationFrame(seekVideo);
             }
         }
@@ -217,12 +195,9 @@
         }
         
         function updateVideoTransform() {
-            const transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
-            const origin = 'center calc(50% + 200px)';
+            const transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${zoom})`;
             video1.style.transform = transform;
-            video1.style.transformOrigin = origin;
             video2.style.transform = transform;
-            video2.style.transformOrigin = origin;
         }
         
         function handleStart(e) {
@@ -258,7 +233,6 @@
             
             const inZoomZone = deltaY < -50 && Math.abs(deltaY) > Math.abs(deltaX) * 2;
             
-            // Smooth rotation easing
             const targetRotation = (inZoomZone || isPanMode) ? -90 : 0;
             currentRotation += (targetRotation - currentRotation) * 0.15;
             
@@ -386,7 +360,6 @@
             const deltaX = wheelPosition.x;
             const deltaY = wheelPosition.y;
             
-            // Detect swipe down for video switch
             const isSwipeDown = deltaY > 50 && Math.abs(deltaX) < 30;
             
             if (isSwipeDown) {
@@ -395,7 +368,6 @@
                 togglePlayPause();
             }
             
-            // Sync videos after any interaction
             syncVideos();
             
             isPanMode = false;
