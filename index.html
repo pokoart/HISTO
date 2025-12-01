@@ -49,11 +49,20 @@
             object-fit: cover;
             will-change: transform, opacity;
             background: #000000;
+        }
+        
+        #video1 {
+            z-index: 1;
+        }
+        
+        #video2 {
+            z-index: 2;
+            opacity: 0;
             transition: opacity 1s ease-out;
         }
         
-        .video.hidden {
-            opacity: 0;
+        #video2.visible {
+            opacity: 1;
         }
         
         .controller {
@@ -80,7 +89,7 @@
         <video id="video1" class="video" playsinline webkit-playsinline>
             <source src="./video.mp4" type="video/mp4">
         </video>
-        <video id="video2" class="video hidden" playsinline webkit-playsinline>
+        <video id="video2" class="video" playsinline webkit-playsinline>
             <source src="./video2.mp4" type="video/mp4">
         </video>
         
@@ -164,9 +173,14 @@
             // Sync time before switch
             newActive.currentTime = oldActive.currentTime;
             
-            // Crossfade - remove hidden from new, add to old
-            newActive.classList.remove('hidden');
-            oldActive.classList.add('hidden');
+            // Toggle video2 visibility (video2 is always on top)
+            if (activeVideo === 1) {
+                // Switching to video2 - fade in video2
+                video2.classList.add('visible');
+            } else {
+                // Switching to video1 - fade out video2
+                video2.classList.remove('visible');
+            }
             
             // Transfer playback state
             if (isPlaying) {
@@ -261,7 +275,7 @@
                         animationFrame = null;
                     }
                     
-                    video1.style.transition = 'opacity 1s ease-out, transform 0.3s ease-out';
+                    video1.style.transition = 'transform 0.3s ease-out';
                     video2.style.transition = 'opacity 1s ease-out, transform 0.3s ease-out';
                     zoom = 1.8;
                     panX = 0;
@@ -269,7 +283,7 @@
                     updateVideoTransform();
                     
                     setTimeout(() => {
-                        video1.style.transition = 'opacity 1s ease-out';
+                        video1.style.transition = 'none';
                         video2.style.transition = 'opacity 1s ease-out';
                         zoomInTransitionDone = true;
                     }, 300);
@@ -400,7 +414,7 @@
             controller.classList.remove('dragging');
             controller.style.transform = '';
             
-            video1.style.transition = 'opacity 1s ease-out, transform 0.3s ease-out';
+            video1.style.transition = 'transform 0.3s ease-out';
             video2.style.transition = 'opacity 1s ease-out, transform 0.3s ease-out';
             setTimeout(() => {
                 zoom = 1;
@@ -409,7 +423,7 @@
                 updateVideoTransform();
                 
                 setTimeout(() => {
-                    video1.style.transition = 'opacity 1s ease-out';
+                    video1.style.transition = 'none';
                     video2.style.transition = 'opacity 1s ease-out';
                 }, 300);
             }, 10);
