@@ -2,7 +2,7 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Video Player</title>
@@ -14,25 +14,18 @@
             -webkit-tap-highlight-color: transparent;
         }
         
-        html {
-            height: 100%;
-        }
-        
-        body {
-            height: 100%;
+        html, body {
             overflow: hidden;
             background: black;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            /* Extend into safe areas */
-            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
         }
         
         #app {
-            position: fixed;
-            top: 0;
+            position: absolute;
+            top: -50px;
             left: 0;
             right: 0;
-            bottom: 0;
+            bottom: -50px;
             background: black;
             overflow: hidden;
         }
@@ -46,8 +39,6 @@
             object-fit: cover;
             will-change: transform, opacity;
             background: black;
-            /* Extend video into safe areas */
-            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
         }
         
         #video1 {
@@ -80,14 +71,6 @@
         
         .controller.dragging {
             transition: transform 0.1s ease-out;
-        }
-        
-        /* Force fullscreen coverage */
-        @supports (padding: env(safe-area-inset-top)) {
-            #app {
-                top: calc(-1 * env(safe-area-inset-top));
-                height: calc(100% + env(safe-area-inset-top) + env(safe-area-inset-bottom));
-            }
         }
     </style>
 </head>
