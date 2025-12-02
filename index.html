@@ -5,10 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#000000">
-    <link rel="manifest" href="./manifest.json">
-    <link rel="apple-touch-icon" href="./controller.png">
     <title>Video Player</title>
     <style>
         * {
@@ -18,20 +14,31 @@
             -webkit-tap-highlight-color: transparent;
         }
         
-        html, body {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
+        html {
             background: black;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
         
-        #app {
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            overflow: hidden;
+            background: black;
+            /* This is the key - extend to edges */
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
+            /* Extend into safe areas */
+            padding: 0;
+        }
+        
+        #app {
+            position: absolute;
+            /* Extend beyond safe areas */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             background: black;
             overflow: hidden;
         }
@@ -43,7 +50,6 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            will-change: transform, opacity;
             background: black;
         }
         
@@ -63,13 +69,15 @@
         
         .controller {
             position: fixed;
-            bottom: 20px;
+            /* Position from bottom safe area */
+            bottom: calc(20px + env(safe-area-inset-bottom));
             left: 50%;
             transform: translateX(-50%);
             cursor: pointer;
             user-select: none;
             touch-action: none;
             transition: transform 0.3s ease-out;
+            filter: drop-shadow(0 20px 25px rgba(0,0,0,0.5));
             z-index: 20;
             width: 160px;
             height: 160px;
@@ -82,10 +90,10 @@
 </head>
 <body>
     <div id="app">
-        <video id="video1" class="video" playsinline webkit-playsinline>
+        <video id="video1" class="video" playsinline>
             <source src="./video.mp4" type="video/mp4">
         </video>
-        <video id="video2" class="video" playsinline webkit-playsinline>
+        <video id="video2" class="video" playsinline>
             <source src="./video2.mp4" type="video/mp4">
         </video>
         
@@ -192,11 +200,11 @@
         }
         
         function calculateSeekSpeed(deltaX) {
-            const maxDelta = 250;
+            const maxDelta = 200;
             const normalizedDelta = Math.max(-maxDelta, Math.min(maxDelta, deltaX));
             const ratio = Math.abs(normalizedDelta) / maxDelta;
-            const curve = Math.pow(ratio, 2.5);
-            const maxSpeed = 0.75;
+            const curve = Math.pow(ratio, 1.5);
+            const maxSpeed = 3;
             const direction = normalizedDelta > 0 ? 1 : -1;
             return direction * curve * maxSpeed;
         }
@@ -240,7 +248,7 @@
             
             wheelPosition = { x: deltaX, y: deltaY };
             
-            const inZoomZone = deltaY < -50 && Math.abs(deltaY) > Math.abs(deltaX) * 2;
+            const inZoomZone = deltaY < -30 && Math.abs(deltaY) > Math.abs(deltaX) * 2;
             
             const targetRotation = (inZoomZone || isPanMode) ? -90 : 0;
             currentRotation += (targetRotation - currentRotation) * 0.15;
@@ -420,12 +428,6 @@
         document.addEventListener('touchend', handleEnd);
         
         controller.addEventListener('contextmenu', (e) => e.preventDefault());
-        
-        document.body.addEventListener('touchmove', (e) => {
-            if (!isDragging) {
-                e.preventDefault();
-            }
-        }, { passive: false });
     </script>
 </body>
 </html>
